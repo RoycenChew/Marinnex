@@ -130,19 +130,18 @@ def _deepseek_prices() -> Any:
     )
 
 
-def scripted_handler(fixtures: Mapping[str, str]) -> Any:
-    """Mock mode: answer from a fixture chosen by what the prompt asks for.
+def scripted_handler(fixtures: Mapping[str, str] | None = None) -> Any:
+    """Mock mode's model: fixtures for the shipped samples, `{}` for anything else.
 
-    Keyed on the task rather than on the document, because a mock-mode test cares
-    that the pipeline wires classify and extract together, not that it can
-    recognise a particular invoice.
+    `fixtures` overrides it, which is what a test uses to script a specific reply.
+    Without an override it answers from `mock_answers`, so `fdip run
+    samples/invoice_digital.pdf` produces a real result with no provider and no
+    spend -- the thing README_RUN.md tells a new reader to try first.
     """
+    from fdip.adapters.mock_answers import answer_for
+
     def handler(messages: Sequence[Any]) -> str:
-        text = "\n".join(str(getattr(m, "content", "")) for m in messages)
-        lowered = text.lower()
-        if "document_type" in lowered and "classify" in lowered:
-            return fixtures.get("classify", '{"label":"invoice","confidence":0.9}')
-        return fixtures.get("extract", "{}")
+        return answer_for(messages, fixtures)
 
     return handler
 
@@ -169,7 +168,7 @@ def build_model_stack(
         from toolkit.adapters import ScriptedLLM
 
         client = ScriptedLLM(
-            handler=handler or scripted_handler(fixtures or {}),
+            handler=handler or scripted_handler(fixtures),
             model="mock-" + settings.model,
         )
         provider_name = "mock"
