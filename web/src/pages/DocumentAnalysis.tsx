@@ -76,7 +76,9 @@ export default function DocumentAnalysis() {
   })
 
   const extraction = analysisQuery.data
-  const fields = extraction?.fields ?? {}
+  // Memoised: `?? {}` produces a fresh object every render, which would defeat
+  // every memo below it and re-derive the groups and boxes on each keystroke.
+  const fields = useMemo(() => extraction?.fields ?? {}, [extraction])
   const groups = useMemo(() => groupFields(fields), [fields])
   const boxes = useMemo(() => boxesOf(fields), [fields])
   const scalarPaths = useMemo(

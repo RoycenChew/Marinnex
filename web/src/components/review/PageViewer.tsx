@@ -56,7 +56,7 @@ export function PageViewer({
   selectedPath: string | null
   onSelectPath: (path: string) => void
 }) {
-  const [page, setPage] = useState(1)
+  const [requestedPage, setPage] = useState(1)
   const [zoom, setZoom] = useState<Zoom>('fit')
   const [src, setSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -64,13 +64,18 @@ export function PageViewer({
   const imageRef = useRef<HTMLImageElement>(null)
   const [rendered, setRendered] = useState({ width: 0, height: 0 })
 
-  // Follow the selection onto its page, so clicking a field in the right-hand
-  // panel never leaves the user looking at the wrong page.
-  useEffect(() => {
-    if (!selectedPath) return
-    const box = boxes.find((b) => b.path === selectedPath)
-    if (box && box.page !== page) setPage(box.page)
-  }, [selectedPath, boxes, page])
+  /*
+   * Follow the selection onto its page, so clicking a field in the right-hand
+   * panel never leaves the user looking at the wrong page.
+   *
+   * Derived during render rather than set from an effect: an effect would render
+   * the old page first and then correct it, which shows as a flash of the wrong
+   * page every time the selection crosses a page boundary.
+   */
+  const selectedPage = selectedPath
+    ? boxes.find((b) => b.path === selectedPath)?.page
+    : undefined
+  const page = selectedPage ?? requestedPage
 
   useEffect(() => {
     let revoked: string | null = null
