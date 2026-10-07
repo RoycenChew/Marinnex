@@ -1,190 +1,349 @@
-// @ts-nocheck
-import { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { apiClient, API_ORIGIN } from '../api/client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UploadCloud, File, AlertCircle, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import clsx from 'clsx';
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  AlertTriangle,
+  CircleCheck,
+  Coins,
+  FileText,
+  Inbox,
+  Trash2,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { deleteDocument, listDocuments, getUsage } from '../api/queries'
+import type { DocumentListItem } from '../api/types'
+import { useAuth } from '../context/AuthContext'
+import { Page } from '../components/layout/AppLayout'
+import { StatCard } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import {
+  EmptyState,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table,
+  TableShell,
+  TableSkeleton,
+  type SortDirection,
+} from '../components/ui/Table'
+import { StatusBadge } from '../components/StatusBadge'
+import { UploadZone } from '../components/UploadZone'
+import { formatCost, formatDate, formatPercent } from '../lib/format'
+import { problemMessage } from '../lib/status'
+import { cn } from '../lib/utils'
+
+type DocumentRow = DocumentListItem
+
+const FILTERS = [
+  { value: '', label: 'All' },
+  { value: 'needs_review', label: 'Needs review' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'processing', label: 'Processing' },
+] as const
+
+type SortKey = 'filename' | 'status' | 'created_at'
 
 export default function Home() {
-  const { activeProjectId } = useAuth();
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
+  const { activeProjectId } = useAuth()
+  const queryClient = useQueryClient()
+  const [filter, setFilter] = useState<string>('')
+  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
+    key: 'created_at',
+    direction: 'desc',
+  })
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [pendingDelete, setPendingDelete] = useState<DocumentRow | null>(null)
 
-  const { data: documentsData, refetch } = useQuery({
-    queryKey: ['documents', activeProjectId],
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET('/v1/documents', {
-        params: { query: { project_id: activeProjectId || undefined } }
-      });
-      if (error) throw error;
-      return data;
-    },
+  const documentsQuery = useQuery({
+    queryKey: ['documents', activeProjectId, filter],
+    queryFn: () =>
+      listDocuments({
+        projectId: activeProjectId,
+        status: filter || undefined,
+      }),
     enabled: !!activeProjectId,
-  });
+  })
 
-  const documents = documentsData?.items || [];
-  const hasProcessing = documents.some(d => d.status === 'processing');
+  const usageQuery = useQuery({
+    queryKey: ['usage', activeProjectId],
+    queryFn: () => getUsage(undefined, activeProjectId),
+    enabled: !!activeProjectId,
+  })
 
-  // Polling logic
+  const documents = useMemo<DocumentRow[]>(
+    () => documentsQuery.data?.items ?? [],
+    [documentsQuery.data],
+  )
+  const processingCount = documents.filter((d) => d.status === 'processing').length
+
+  // Poll only while something is actually processing, and stop as soon as
+  // nothing is -- a fixed interval would keep a quiet workspace awake forever.
   useEffect(() => {
-    let interval: number | undefined;
-    if (hasProcessing) {
-      interval = window.setInterval(() => {
-        refetch();
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [hasProcessing, refetch]);
+    if (processingCount === 0) return
+    const timer = window.setInterval(() => {
+      void documentsQuery.refetch()
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [processingCount, documentsQuery])
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await apiClient.DELETE('/v1/documents/{document_id}', {
-        params: { path: { document_id: id }, query: { project_id: activeProjectId || undefined } }
-      });
-      if (error) throw error;
+    mutationFn: (id: string) => deleteDocument(id, activeProjectId),
+    onSuccess: (_data, id) => {
+      toast.success('Document deleted')
+      setSelected((current) => {
+        const next = new Set(current)
+        next.delete(id)
+        return next
+      })
+      void queryClient.invalidateQueries({ queryKey: ['documents'] })
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-    }
-  });
+    onError: (error) => toast.error('Not deleted', { description: problemMessage(error) }),
+  })
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const sorted = useMemo(() => {
+    const rows = [...documents]
+    const factor = sort.direction === 'desc' ? -1 : 1
+    rows.sort((a, b) => {
+      const left = String(a[sort.key] ?? '')
+      const right = String(b[sort.key] ?? '')
+      return left.localeCompare(right) * factor
+    })
+    return rows
+  }, [documents, sort])
 
-    setUploading(true);
-    setUploadError('');
+  const toggleSort = (key: SortKey) =>
+    setSort((current) =>
+      current.key === key
+        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' },
+    )
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      // Generate idempotency key
-      const idempotencyKey = crypto.randomUUID();
-
-      const response = await fetch(`${API_ORIGIN}/v1/documents${activeProjectId ? `?project_id=${activeProjectId}` : ''}`, {
-        method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKey },
-        body: formData,
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Upload failed');
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-    } catch (err: any) {
-      setUploadError(err.message || 'Upload failed');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const getStatusBadge = (status: string, code?: string) => {
-    switch (status) {
-      case 'completed': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle2 className="w-3 h-3 mr-1" /> Completed</span>;
-      case 'needs_review': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Needs Review</span>;
-      case 'processing': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Processing</span>;
-      case 'document_type_mismatch': 
-      case 'unsupported':
-      case 'failed':
-        return <span title={code} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 cursor-help"><AlertCircle className="w-3 h-3 mr-1" /> {status}</span>;
-      case 'rejected': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Rejected</span>;
-      default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status}</span>;
-    }
-  };
+  /*
+   * The KPI row uses only what the API actually returns. `GET /usage` gives
+   * pages, documents and AI cost for the month; the review and auto-accept
+   * figures are counted from the documents in view, and the card says so rather
+   * than implying a month-wide statistic it cannot produce. A
+   * `GET /documents/stats` endpoint is in BACKEND_REQUESTS.md.
+   */
+  const needsReview = documents.filter((d) => d.status === 'needs_review').length
+  const completed = documents.filter((d) => d.status === 'completed').length
+  const decided = needsReview + completed
+  const usage = usageQuery.data
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
+    <Page
+      title="Documents"
+      description="Upload an invoice and FDIP extracts it with evidence for every value."
+    >
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Documents this month"
+          value={usage?.documents ?? 0}
+          hint={`${usage?.pages ?? 0} pages`}
+          icon={<FileText className="h-4 w-4" />}
+          loading={usageQuery.isLoading}
+        />
+        <StatCard
+          label="Needs review"
+          value={needsReview}
+          hint="In the list below"
+          tone={needsReview > 0 ? 'warning' : 'default'}
+          icon={<AlertTriangle className="h-4 w-4" />}
+          loading={documentsQuery.isLoading}
+        />
+        <StatCard
+          label="Accepted without review"
+          value={decided ? formatPercent(completed / decided, 0) : '—'}
+          hint={decided ? `${completed} of ${decided} decided` : 'No decisions yet'}
+          icon={<CircleCheck className="h-4 w-4" />}
+          loading={documentsQuery.isLoading}
+        />
+        <StatCard
+          label="AI cost this month"
+          value={formatCost(usage?.ai_cost_usd)}
+          hint="Charged by the provider"
+          icon={<Coins className="h-4 w-4" />}
+          loading={usageQuery.isLoading}
+        />
       </div>
 
-      <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center">
-        <div className="flex flex-col items-center justify-center">
-          <UploadCloud className="w-12 h-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Document</h3>
-          <p className="text-sm text-gray-500 mb-6">PDF, PNG, JPG up to 20MB</p>
-          
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange}
-            accept=".pdf,.png,.jpg,.jpeg"
-            className="hidden"
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className={clsx(
-              "px-4 py-2 rounded font-medium text-white transition-colors",
-              uploading ? "bg-primary-light cursor-not-allowed" : "bg-primary-dark hover:bg-primary-light"
-            )}
-          >
-            {uploading ? 'Uploading...' : 'Select File'}
-          </button>
-          {uploadError && <p className="mt-4 text-sm text-red-600 bg-red-50 p-2 rounded">{uploadError}</p>}
+      <div className="mb-5">
+        <UploadZone
+          projectId={activeProjectId}
+          onUploaded={() => queryClient.invalidateQueries({ queryKey: ['documents'] })}
+        />
+      </div>
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div
+          role="tablist"
+          aria-label="Filter by status"
+          className="flex items-center gap-0.5 rounded-[var(--radius-md)] border bg-[var(--surface-raised)] p-0.5"
+        >
+          {FILTERS.map((option) => (
+            <button
+              key={option.value}
+              role="tab"
+              aria-selected={filter === option.value}
+              onClick={() => setFilter(option.value)}
+              className={cn(
+                'rounded-[var(--radius-sm)] px-2.5 py-1 text-sm font-medium transition-colors duration-100',
+                filter === option.value
+                  ? 'bg-[var(--surface-selected)] text-[var(--text-brand)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
+
+        {selected.size > 0 && (
+          <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <span className="tabular">{selected.size} selected</span>
+            <Button size="sm" variant="secondary" onClick={() => setSelected(new Set())}>
+              Clear
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {documents.length === 0 ? (
+      <TableShell>
+        <Table>
+          <THead>
+            <TH width="36px">
+              <input
+                type="checkbox"
+                aria-label="Select all"
+                className="h-3.5 w-3.5 accent-[var(--accent-solid)]"
+                checked={sorted.length > 0 && selected.size === sorted.length}
+                onChange={(e) =>
+                  setSelected(
+                    e.target.checked ? new Set(sorted.map((d) => d.id)) : new Set(),
+                  )
+                }
+              />
+            </TH>
+            <TH
+              sortable
+              direction={sort.key === 'filename' ? sort.direction : null}
+              onSort={() => toggleSort('filename')}
+            >
+              Document
+            </TH>
+            <TH>Type</TH>
+            <TH
+              sortable
+              direction={sort.key === 'status' ? sort.direction : null}
+              onSort={() => toggleSort('status')}
+            >
+              Status
+            </TH>
+            <TH align="right">Pages</TH>
+            <TH
+              align="right"
+              sortable
+              direction={sort.key === 'created_at' ? sort.direction : null}
+              onSort={() => toggleSort('created_at')}
+            >
+              Uploaded
+            </TH>
+            <TH width="56px" align="right">
+              <span className="sr-only">Actions</span>
+            </TH>
+          </THead>
+
+          {documentsQuery.isLoading ? (
+            <TableSkeleton rows={5} columns={7} />
+          ) : sorted.length === 0 ? (
+            <TBody>
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
-                  No documents found.
+                <td colSpan={7}>
+                  <EmptyState
+                    icon={<Inbox className="h-5 w-5" />}
+                    title={filter ? 'Nothing with that status' : 'No documents yet'}
+                    description={
+                      filter
+                        ? 'Try a different filter.'
+                        : 'Drop an invoice above and it will appear here as it processes.'
+                    }
+                  />
                 </td>
               </tr>
-            ) : documents.map((doc) => (
-              <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <File className="flex-shrink-0 h-5 w-5 text-gray-400 mr-3" />
-                    <Link to={`/documents/${doc.id}/analysis`} className="text-sm font-medium text-primary-dark hover:underline">
-                      {doc.filename}
+            </TBody>
+          ) : (
+            <TBody>
+              {sorted.map((doc) => (
+                <TR key={doc.id} selected={selected.has(doc.id)}>
+                  <TD>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${doc.filename}`}
+                      className="h-3.5 w-3.5 accent-[var(--accent-solid)]"
+                      checked={selected.has(doc.id)}
+                      onChange={(e) =>
+                        setSelected((current) => {
+                          const next = new Set(current)
+                          if (e.target.checked) next.add(doc.id)
+                          else next.delete(doc.id)
+                          return next
+                        })
+                      }
+                    />
+                  </TD>
+                  <TD>
+                    <Link
+                      to={`/documents/${doc.id}/analysis`}
+                      className="flex items-center gap-2 font-medium text-[var(--text-primary)] hover:text-[var(--text-brand)]"
+                    >
+                      <FileText className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
+                      <span className="truncate">{doc.filename}</span>
                     </Link>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {doc.document_type || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {getStatusBadge(doc.status)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(doc.created_at || '').toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    onClick={() => deleteMutation.mutate(doc.id!)}
-                    className="text-red-500 hover:text-red-700"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+                  </TD>
+                  <TD className="text-[var(--text-secondary)]">
+                    {doc.document_type?.replace(/_/g, ' ') ?? '—'}
+                  </TD>
+                  <TD>
+                    <StatusBadge status={doc.status} />
+                  </TD>
+                  <TD numeric className="text-[var(--text-secondary)]">
+                    {doc.pages ?? '—'}
+                  </TD>
+                  <TD numeric title={doc.created_at ?? undefined} className="text-[var(--text-secondary)]">
+                    {formatDate(doc.created_at)}
+                  </TD>
+                  <TD align="right">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Delete ${doc.filename}`}
+                      onClick={() => setPendingDelete(doc)}
+                      className="text-[var(--text-tertiary)] hover:text-[var(--color-danger-600)]"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          )}
+        </Table>
+      </TableShell>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title={`Delete ${pendingDelete?.filename}?`}
+        description="This removes the document and every extraction, correction and decision made on it. It cannot be undone."
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (pendingDelete) deleteMutation.mutate(pendingDelete.id)
+          setPendingDelete(null)
+        }}
+      />
+    </Page>
+  )
 }
