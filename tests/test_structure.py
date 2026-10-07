@@ -207,3 +207,55 @@ def test_the_contract_covers_every_published_route() -> None:
         if shape(route) not in documented
     )
     assert not undocumented, undocumented
+
+
+def test_the_captured_examples_are_usable_as_ui_mocks() -> None:
+    """`samples/examples.json` is what `VITE_USE_MOCKS=true` reads.
+
+    The UI agent builds against this file before the backend is running, so its
+    shape is part of the contract: a flat map of `"<METHOD> /v1/<path>"` to
+    `{status, body}`. It must also contain the two responses the UI has special
+    rendering for -- a scan and an error -- because the UI cannot mock what it has
+    never seen.
+    """
+    path = ROOT / "samples" / "examples.json"
+    assert path.is_file(), "regenerate with: pytest tests/test_capture_examples.py"
+    examples = json.loads(path.read_text(encoding="utf-8"))
+    assert len(examples) >= 20, len(examples)
+
+    for key, entry in examples.items():
+        assert isinstance(entry, dict), key
+        assert set(entry) == {"status", "body"}, (key, sorted(entry))
+        assert isinstance(entry["status"], int), key
+        method = key.split(" ", 1)[0]
+        assert method in ("GET", "POST", "DELETE"), key
+        assert "/v1/" in key, key
+
+    scan = next(k for k in examples if "a scan" in k)
+    body = examples[scan]["body"]
+    assert body["status"] == "needs_review"
+    assert "scanned_document_review" in body["reasons"]
+
+    error = next(k for k in examples if "error" in k)
+    assert examples[error]["status"] == 404
+    assert examples[error]["body"]["code"] == "not_found"
+
+
+def test_the_contract_states_the_two_ui_renderings() -> None:
+    """The scan banner and "Not on document" are behaviour the UI must match.
+
+    Pinned here because they are the two places the UI can look correct while being
+    wrong: a scan rendered as an error alarms the user over normal behaviour, and an
+    absent field rendered as `0` is a fabricated number on a financial document.
+    """
+    text = (ROOT / "API_CONTRACT_FOR_UI.md").read_text(encoding="utf-8")
+    for needle in (
+        "scanned_document_review",
+        "Scanned documents are reviewed by a person before acceptance",
+        "Not on document",
+        "VITE_USE_MOCKS=true",
+        "samples/examples.json",
+        "README_RUN.md",
+    ):
+        assert needle in text, needle
+    assert len(text.splitlines()) < 200, len(text.splitlines())

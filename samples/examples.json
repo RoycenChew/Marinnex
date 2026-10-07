@@ -3,12 +3,12 @@
     "status": 200,
     "body": {
       "user": {
-        "id": "usr_1m4amb3jpqpxpe8db",
+        "id": "usr_1m4an4ehm7z5tgdn8",
         "email": "dev@fdip.local"
       },
       "projects": [
         {
-          "id": "prj_1m4amb3qvh464e95a",
+          "id": "prj_1m4an4eqt5fyz2b7k",
           "name": "Default"
         }
       ]
@@ -57,8 +57,8 @@
   "POST /v1/documents": {
     "status": 202,
     "body": {
-      "document_id": "doc_1m4amb3ycnbex8ngr",
-      "job_id": "job_1m4amb3ye4y1wp6wg",
+      "document_id": "doc_1m4an4f05hm4wn0vd",
+      "job_id": "job_1m4an4f07esh7as7y",
       "status": "processing",
       "reused": false
     }
@@ -66,7 +66,7 @@
   "GET /v1/documents/{id} (while processing)": {
     "status": 200,
     "body": {
-      "id": "doc_1m4amb3ycnbex8ngr",
+      "id": "doc_1m4an4f05hm4wn0vd",
       "filename": "invoice_digital.pdf",
       "mime": "application/pdf",
       "pages": 0,
@@ -76,21 +76,21 @@
       "document_type": null,
       "classification_confidence_source": null,
       "job": {
-        "id": "job_1m4amb3ye4y1wp6wg",
+        "id": "job_1m4an4f07esh7as7y",
         "state": "received",
         "stage": null,
         "attempts": 0,
         "error_code": null
       },
       "decision": "processing",
-      "created_at": "2026-10-07T07:30:42",
+      "created_at": "2026-10-07T07:44:33",
       "page_image_dpi": 150
     }
   },
   "GET /v1/documents/{id}": {
     "status": 200,
     "body": {
-      "id": "doc_1m4amb3ycnbex8ngr",
+      "id": "doc_1m4an4f05hm4wn0vd",
       "filename": "invoice_digital.pdf",
       "mime": "application/pdf",
       "pages": 1,
@@ -108,14 +108,14 @@
         "source": "keyword"
       },
       "job": {
-        "id": "job_1m4amb3ye4y1wp6wg",
+        "id": "job_1m4an4f07esh7as7y",
         "state": "completed",
         "stage": "persist",
         "attempts": 1,
         "error_code": null
       },
       "decision": "completed",
-      "created_at": "2026-10-07T07:30:42",
+      "created_at": "2026-10-07T07:44:33",
       "page_image_dpi": 150
     }
   },
@@ -124,12 +124,12 @@
     "body": {
       "items": [
         {
-          "id": "doc_1m4amb3ycnbex8ngr",
+          "id": "doc_1m4an4f05hm4wn0vd",
           "filename": "invoice_digital.pdf",
           "status": "completed",
           "document_type": "invoice",
           "pages": 1,
-          "created_at": "2026-10-07T07:30:42",
+          "created_at": "2026-10-07T07:44:33",
           "decision": "completed"
         }
       ],
@@ -139,8 +139,8 @@
   "GET /v1/documents/{id}/analysis": {
     "status": 200,
     "body": {
-      "extraction_id": "ext_1m4amb4anna3frmyp",
-      "document_id": "doc_1m4amb3ycnbex8ngr",
+      "extraction_id": "ext_1m4an4fg2cs5q59th",
+      "document_id": "doc_1m4an4f05hm4wn0vd",
       "version": 1,
       "status": "completed",
       "document_type": "invoice",
@@ -215,7 +215,7 @@
       "validation": [],
       "reasons": [],
       "pipeline_version": "2026.10.1",
-      "created_at": "2026-10-07T07:30:43",
+      "created_at": "2026-10-07T07:44:33",
       "suggested_fields": [
         "buyer_name",
         "currency",
@@ -251,21 +251,21 @@
   "GET /v1/jobs/{id}": {
     "status": 200,
     "body": {
-      "id": "job_1m4amb3ye4y1wp6wg",
-      "document_id": "doc_1m4amb3ycnbex8ngr",
+      "id": "job_1m4an4f07esh7as7y",
+      "document_id": "doc_1m4an4f05hm4wn0vd",
       "state": "completed",
       "stage": "persist",
       "attempts": 1,
       "error_code": null,
-      "created_at": "2026-10-07T07:30:42",
-      "finished_at": "2026-10-07T07:30:43.193268"
+      "created_at": "2026-10-07T07:44:33",
+      "finished_at": "2026-10-07T07:44:33.837068"
     }
   },
   "POST /v1/extractions/{id}/corrections": {
     "status": 201,
     "body": {
-      "extraction_id": "ext_1m4amb4kzvb55c8vg",
-      "document_id": "doc_1m4amb3ycnbex8ngr",
+      "extraction_id": "ext_1m4an4fnybz2cmfxz",
+      "document_id": "doc_1m4an4f05hm4wn0vd",
       "version": 2,
       "status": "needs_review",
       "document_type": "invoice",
@@ -348,37 +348,37 @@
         "validation:line_sum_ne_subtotal"
       ],
       "pipeline_version": "2026.10.1",
-      "created_at": "2026-10-07T07:30:43",
+      "created_at": "2026-10-07T07:44:33",
       "_fields_note": "39 entries in total; 2 shown"
     }
   },
   "POST /v1/extractions/{id}/decision": {
     "status": 200,
     "body": {
-      "extraction_id": "ext_1m4amb4kzvb55c8vg",
+      "extraction_id": "ext_1m4an4fnybz2cmfxz",
       "status": "completed"
     }
   },
   "POST /v1/schemas": {
     "status": 201,
     "body": {
-      "schema_id": "sch_1m4amb4nsnb9jpwkr",
+      "schema_id": "sch_1m4an4fr241j5spk4",
       "version": 1
     }
   },
   "GET /v1/schemas/{id}": {
     "status": 200,
     "body": {
-      "schema_id": "sch_1m4amb4nsnb9jpwkr",
+      "schema_id": "sch_1m4an4fr241j5spk4",
       "name": "AP invoices",
       "document_type": "invoice",
       "template_id": "tpl_invoice_v1",
       "current_version": 1,
-      "created_at": "2026-10-07T07:30:43",
+      "created_at": "2026-10-07T07:44:34",
       "versions": [
         {
           "version": 1,
-          "created_at": "2026-10-07T07:30:43",
+          "created_at": "2026-10-07T07:44:34",
           "test_run_status": "none",
           "fields": [
             "invoice_number",
@@ -400,33 +400,33 @@
   "POST /v1/schemas/{id}/versions/{v}/test-runs": {
     "status": 202,
     "body": {
-      "test_run_id": "run_1m4amb4yvfw74cr61",
-      "schema_id": "sch_1m4amb4nsnb9jpwkr",
+      "test_run_id": "run_1m4an4ga6pmgbcqbx",
+      "schema_id": "sch_1m4an4fr241j5spk4",
       "version": 1,
       "status": "completed",
       "passed": true,
       "per_document": [
         {
-          "document_id": "doc_1m4amb3ycnbex8ngr",
+          "document_id": "doc_1m4an4f05hm4wn0vd",
           "status": "ok",
           "fields_ok": 6,
           "fields_total": 6
         },
         {
-          "document_id": "doc_1m4amb4pppmev5n05",
+          "document_id": "doc_1m4an4fsk2mx6b7sz",
           "status": "ok",
           "fields_ok": 6,
           "fields_total": 6
         },
         {
-          "document_id": "doc_1m4amb4q7xcjcgvrs",
+          "document_id": "doc_1m4an4ftc3bfmt3ek",
           "status": "ok",
           "fields_ok": 6,
           "fields_total": 6
         }
       ],
-      "created_at": "2026-10-07T07:30:43",
-      "finished_at": "2026-10-07T07:30:43.803076"
+      "created_at": "2026-10-07T07:44:34",
+      "finished_at": "2026-10-07T07:44:34.630675"
     }
   },
   "GET /v1/schemas/{id}/versions/{v}/contract": {
@@ -454,8 +454,8 @@
   "POST /v1/api-keys": {
     "status": 201,
     "body": {
-      "id": "key_1m4amb4zhtmv0axqk",
-      "prefix": "fdip_test_FNq5QS4r",
+      "id": "key_1m4an4gb2psf19avp",
+      "prefix": "fdip_test_GMDIEa8r",
       "mode": "test",
       "key": "fdip_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  (the real key appears here once)",
       "detail": "store this key now; it is not retrievable"
@@ -465,27 +465,27 @@
     "status": 200,
     "body": [
       {
-        "id": "key_1m4amb4zhtmv0axqk",
+        "id": "key_1m4an4gb2psf19avp",
         "name": "ui demo",
-        "prefix": "fdip_test_FNq5QS4r",
+        "prefix": "fdip_test_GMDIEa8r",
         "mode": "test",
         "schema_versions": [
           {
-            "schema_id": "sch_1m4amb4nsnb9jpwkr",
+            "schema_id": "sch_1m4an4fr241j5spk4",
             "version": 1
           }
         ],
         "expires_at": null,
         "revoked_at": null,
         "last_used_at": null,
-        "created_at": "2026-10-07T07:30:43"
+        "created_at": "2026-10-07T07:44:34"
       }
     ]
   },
   "POST /v1/exports": {
     "status": 201,
     "body": {
-      "export_id": "exp_1m4amb5088v43400d",
+      "export_id": "exp_1m4an4gbwzct0nkna",
       "status": "ready",
       "row_count": 1
     }
@@ -519,7 +519,113 @@
       "pipeline_version": "2026.10.1"
     }
   },
-  "an error response (RFC 9457)": {
+  "GET /v1/documents/{id}/analysis (a scan)": {
+    "status": 200,
+    "body": {
+      "extraction_id": "ext_1m4an4jpdk49jw2pg",
+      "document_id": "doc_1m4an4hj1kga3nck6",
+      "version": 1,
+      "status": "needs_review",
+      "document_type": "invoice",
+      "schema": {
+        "id": "invoice",
+        "version": 1
+      },
+      "currency": "MYR",
+      "data": {
+        "document_type": "invoice",
+        "invoice_number": "INV-2026-0417",
+        "invoice_date": "2026-03-17",
+        "due_date": "2026-04-16",
+        "po_number": "PO-88213",
+        "do_number": null,
+        "vendor_name": "SOUTHERN STEEL TRADING SDN BHD",
+        "vendor_registration_no": "201901234567",
+        "vendor_tax_id": "C12345678901",
+        "vendor_address": null,
+        "vendor_contact": null,
+        "buyer_name": "Harapan Engineering Sdn Bhd",
+        "buyer_tax_id": null,
+        "buyer_address": null,
+        "currency": "MYR",
+        "subtotal": "1984.00",
+        "discount_amount": null,
+        "tax_rate": "8",
+        "tax_amount": "158.72",
+        "tax_lines": null,
+        "rounding_adjustment": null,
+        "total": "2142.72",
+        "amount_in_words": null,
+        "payment_terms": "30 days nett",
+        "bank_account": null,
+        "line_items": [
+          {
+            "description": "Hex bolt stainless M8 HBS-1000",
+            "quantity": "40",
+            "unit_price": "12.50",
+            "amount": "500.00",
+            "tax_code": null
+          },
+          "..."
+        ]
+      },
+      "fields": {
+        "amount_in_words": {
+          "value": null,
+          "raw_text": null,
+          "status": "missing",
+          "match": "not_checked",
+          "evidence": [],
+          "reasons": []
+        },
+        "bank_account": {
+          "value": null,
+          "raw_text": null,
+          "status": "missing",
+          "match": "not_checked",
+          "evidence": [],
+          "reasons": []
+        }
+      },
+      "validation": [],
+      "reasons": [
+        "field_not_grounded:tax_rate",
+        "scanned_document_review"
+      ],
+      "pipeline_version": "2026.10.1",
+      "created_at": "2026-10-07T07:44:37",
+      "suggested_fields": [
+        "buyer_name",
+        "currency",
+        "document_type",
+        "due_date",
+        "invoice_date",
+        "invoice_number",
+        "line_items[0].amount",
+        "line_items[0].description",
+        "line_items[0].quantity",
+        "line_items[0].unit_price",
+        "line_items[1].amount",
+        "line_items[1].description",
+        "line_items[1].quantity",
+        "line_items[1].unit_price",
+        "line_items[2].amount",
+        "line_items[2].description",
+        "line_items[2].quantity",
+        "line_items[2].unit_price",
+        "payment_terms",
+        "po_number",
+        "subtotal",
+        "tax_amount",
+        "total",
+        "vendor_name",
+        "vendor_registration_no",
+        "vendor_tax_id"
+      ],
+      "_fields_note": "39 entries in total; 2 shown"
+    }
+  },
+  "GET /v1/documents/{id} (404, RFC 9457 error)": {
     "status": 404,
     "body": {
       "type": "https://fdip.local/problems/not_found",

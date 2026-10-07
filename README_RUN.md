@@ -138,12 +138,19 @@ The UI agent needs four things from this folder:
 | --- | --- |
 | `openapi.json` | the machine-readable contract; a test fails if it is stale |
 | `API_CONTRACT_FOR_UI.md` | the same thing for humans, with real captured examples |
-| `samples\` | four documents to test against, plus `examples.json` |
+| `samples\` | five documents to test against, plus `examples.json` |
 | this file | how to get the backend up |
 
 Samples: `invoice_digital.pdf`, `invoice_malay.pdf` (Malay labels, SST 6%),
 `credit_note.pdf` (negative amounts), `invoice_scanned.png` (a 200 DPI scan, needs
 Tesseract) and `not_an_invoice.pdf` (a bank statement, for the type gate).
+
+**The UI can also start before this backend is running.** `samples/examples.json`
+holds 21 real responses keyed by `"<METHOD> /v1/<path>"` as `{status, body}`,
+captured from an actual mock-mode run, so the UI agent can work behind
+`VITE_USE_MOCKS=true` and switch to the real API later. Regenerate the file with
+`python -m pytest tests/test_capture_examples.py` after changing a response shape;
+a test checks it stays usable as a mock source.
 
 ## 8. Tests
 

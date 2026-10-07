@@ -153,8 +153,37 @@ def test_capture(client: Any, upload: Any, run_worker: Any, pdf: Any) -> None:
         "status": 200, "body": client.get("/v1/health").json(),
     }
 
+    # A scan, so the UI can build the review banner against a real response. The
+    # UI cannot mock what it has never seen, and this is the one status that is
+    # unconditional rather than a property of the document.
+    import shutil
+
+    if shutil.which("tesseract") is not None:
+        import pypdfium2 as pdfium
+
+        source = pdf("invoice_digital")
+        rendered = pdfium.PdfDocument(str(source))
+        image = rendered[0].render(scale=200 / 72).to_pil().convert("L")
+        rendered.close()
+        scan = source.parent / "scan.png"
+        image.save(scan)
+        with scan.open("rb") as handle:
+            scanned = client.post("/v1/documents", files={
+                "file": ("invoice_scanned.png", handle, "image/png")}).json()
+        run_worker(engine)
+        scan_body = client.get(
+            "/v1/documents/%s/analysis" % scanned["document_id"]
+        ).json()
+        captured["GET /v1/documents/{id}/analysis (a scan)"] = {
+            "status": 200, "body": _trim(scan_body, 2),
+        }
+        assert scan_body["status"] == "needs_review"
+        assert "scanned_document_review" in scan_body["reasons"]
+
     missing = client.get("/v1/documents/doc_does_not_exist")
-    captured["an error response (RFC 9457)"] = {
+    # Keyed like every other entry, because the file is read by a mock layer that
+    # looks up a route: a prose key would be the one entry it could not find.
+    captured["GET /v1/documents/{id} (404, RFC 9457 error)"] = {
         "status": missing.status_code, "body": missing.json(),
     }
 
@@ -165,4 +194,4 @@ def test_capture(client: Any, upload: Any, run_worker: Any, pdf: Any) -> None:
     assert OUT.is_file()
     # Every example is a real response, so every status is a real status.
     assert captured["POST /v1/documents"]["status"] == 202
-    assert captured["an error response (RFC 9457)"]["status"] == 404
+    assert captured["GET /v1/documents/{id} (404, RFC 9457 error)"]["status"] == 404
