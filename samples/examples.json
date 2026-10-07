@@ -1,0 +1,533 @@
+{
+  "GET /v1/auth/me": {
+    "status": 200,
+    "body": {
+      "user": {
+        "id": "usr_1m4ajg51gngx7gjeg",
+        "email": "dev@fdip.local"
+      },
+      "projects": [
+        {
+          "id": "prj_1m4ajg54nh3r09bjd",
+          "name": "Default"
+        }
+      ]
+    }
+  },
+  "GET /v1/templates": {
+    "status": 200,
+    "body": [
+      {
+        "id": "tpl_invoice_v1",
+        "document_type": "invoice",
+        "version": 1,
+        "name": "Malaysian supplier invoice",
+        "description": "A Malaysian supplier invoice or credit note. Labels may be in English or Malay, often both on the same document. Amounts are usually in Malaysian Ringgit. A value in parentheses is negative.",
+        "fields": [
+          {
+            "path": "document_type",
+            "label": "Document type",
+            "type": "enum",
+            "description": "Whether the document is an invoice or a credit note. A credit note is labelled Credit Note or Nota Kredit and reduces what is owed.",
+            "required_default": true,
+            "is_array": false,
+            "enum": [
+              "invoice",
+              "credit_note"
+            ],
+            "money": false,
+            "grounding": "required"
+          },
+          {
+            "path": "invoice_number",
+            "label": "Invoice number",
+            "type": "string",
+            "description": "The invoice or credit note reference printed on the document, labelled Invoice No, Tax Invoice No, No. Invois, Credit Note No or No. Nota Kredit.",
+            "required_default": true,
+            "is_array": false,
+            "enum": [],
+            "money": false,
+            "grounding": "required"
+          },
+          "... 34 in total"
+        ]
+      }
+    ]
+  },
+  "POST /v1/documents": {
+    "status": 202,
+    "body": {
+      "document_id": "doc_1m4ajg58as2pr1vsb",
+      "job_id": "job_1m4ajg58b91jadqyq",
+      "status": "processing",
+      "reused": false
+    }
+  },
+  "GET /v1/documents/{id} (while processing)": {
+    "status": 200,
+    "body": {
+      "id": "doc_1m4ajg58as2pr1vsb",
+      "filename": "invoice_digital.pdf",
+      "mime": "application/pdf",
+      "pages": 0,
+      "page_sizes": {},
+      "status": "processing",
+      "error_code": null,
+      "document_type": null,
+      "classification_confidence_source": null,
+      "job": {
+        "id": "job_1m4ajg58b91jadqyq",
+        "state": "received",
+        "stage": null,
+        "attempts": 0,
+        "error_code": null
+      },
+      "decision": "processing",
+      "created_at": "2026-10-07T06:58:30",
+      "page_image_dpi": 150
+    }
+  },
+  "GET /v1/documents/{id}": {
+    "status": 200,
+    "body": {
+      "id": "doc_1m4ajg58as2pr1vsb",
+      "filename": "invoice_digital.pdf",
+      "mime": "application/pdf",
+      "pages": 1,
+      "page_sizes": {
+        "1": [
+          595.0,
+          842.0
+        ]
+      },
+      "status": "completed",
+      "error_code": null,
+      "document_type": "invoice",
+      "classification_confidence_source": {
+        "confidence": 0.6,
+        "source": "keyword"
+      },
+      "job": {
+        "id": "job_1m4ajg58b91jadqyq",
+        "state": "completed",
+        "stage": "persist",
+        "attempts": 1,
+        "error_code": null
+      },
+      "decision": "completed",
+      "created_at": "2026-10-07T06:58:30",
+      "page_image_dpi": 150
+    }
+  },
+  "GET /v1/documents": {
+    "status": 200,
+    "body": {
+      "items": [
+        {
+          "id": "doc_1m4ajg58as2pr1vsb",
+          "filename": "invoice_digital.pdf",
+          "status": "completed",
+          "document_type": "invoice",
+          "pages": 1,
+          "created_at": "2026-10-07T06:58:30",
+          "decision": "completed"
+        }
+      ],
+      "next_cursor": null
+    }
+  },
+  "GET /v1/documents/{id}/analysis": {
+    "status": 200,
+    "body": {
+      "extraction_id": "ext_1m4ajg5g5ra9fcatf",
+      "document_id": "doc_1m4ajg58as2pr1vsb",
+      "version": 1,
+      "status": "completed",
+      "document_type": "invoice",
+      "schema": {
+        "id": "invoice",
+        "version": 1
+      },
+      "currency": "MYR",
+      "data": {
+        "document_type": "invoice",
+        "invoice_number": "INV-2026-0417",
+        "invoice_date": "2026-03-17",
+        "due_date": "2026-04-16",
+        "po_number": "PO-88213",
+        "do_number": null,
+        "vendor_name": "SOUTHERN STEEL TRADING SDN BHD",
+        "vendor_registration_no": "201901234567",
+        "vendor_tax_id": "C12345678901",
+        "vendor_address": null,
+        "vendor_contact": null,
+        "buyer_name": "Harapan Engineering Sdn Bhd",
+        "buyer_tax_id": null,
+        "buyer_address": null,
+        "currency": "MYR",
+        "subtotal": "1984.00",
+        "discount_amount": null,
+        "tax_rate": "8",
+        "tax_amount": "158.72",
+        "tax_lines": null,
+        "rounding_adjustment": null,
+        "total": "2142.72",
+        "amount_in_words": null,
+        "payment_terms": "30 days nett",
+        "bank_account": null,
+        "line_items": [
+          {
+            "description": "Hex bolt stainless M8 HBS-1000",
+            "quantity": "40",
+            "unit_price": "12.50",
+            "amount": "500.00",
+            "tax_code": null
+          },
+          "..."
+        ]
+      },
+      "fields": {
+        "amount_in_words": {
+          "value": null,
+          "raw_text": null,
+          "status": "missing",
+          "match": "not_checked",
+          "evidence": [],
+          "reasons": []
+        },
+        "bank_account": {
+          "value": null,
+          "raw_text": null,
+          "status": "missing",
+          "match": "not_checked",
+          "evidence": [],
+          "reasons": []
+        },
+        "buyer_address": {
+          "value": null,
+          "raw_text": null,
+          "status": "missing",
+          "match": "not_checked",
+          "evidence": [],
+          "reasons": []
+        }
+      },
+      "validation": [],
+      "reasons": [],
+      "pipeline_version": "2026.10.1",
+      "created_at": "2026-10-07T06:58:31",
+      "suggested_fields": [
+        "buyer_name",
+        "currency",
+        "document_type",
+        "due_date",
+        "invoice_date",
+        "invoice_number",
+        "line_items[0].amount",
+        "line_items[0].description",
+        "line_items[0].quantity",
+        "line_items[0].unit_price",
+        "line_items[1].amount",
+        "line_items[1].description",
+        "line_items[1].quantity",
+        "line_items[1].unit_price",
+        "line_items[2].amount",
+        "line_items[2].description",
+        "line_items[2].quantity",
+        "line_items[2].unit_price",
+        "payment_terms",
+        "po_number",
+        "subtotal",
+        "tax_amount",
+        "tax_rate",
+        "total",
+        "vendor_name",
+        "vendor_registration_no",
+        "vendor_tax_id"
+      ],
+      "_fields_note": "39 entries in total; 3 shown"
+    }
+  },
+  "GET /v1/jobs/{id}": {
+    "status": 200,
+    "body": {
+      "id": "job_1m4ajg58b91jadqyq",
+      "document_id": "doc_1m4ajg58as2pr1vsb",
+      "state": "completed",
+      "stage": "persist",
+      "attempts": 1,
+      "error_code": null,
+      "created_at": "2026-10-07T06:58:30",
+      "finished_at": "2026-10-07T06:58:31.073674"
+    }
+  },
+  "POST /v1/extractions/{id}/corrections": {
+    "status": 201,
+    "body": {
+      "extraction_id": "ext_1m4ajg5kcpz62mv25",
+      "document_id": "doc_1m4ajg58as2pr1vsb",
+      "version": 2,
+      "status": "needs_review",
+      "document_type": "invoice",
+      "schema": {
+        "id": "invoice",
+        "version": 1
+      },
+      "currency": "MYR",
+      "data": {
+        "document_type": "invoice",
+        "invoice_number": "INV-2026-0417",
+        "invoice_date": "2026-03-17",
+        "due_date": "2026-04-16",
+        "po_number": "PO-88213",
+        "do_number": null,
+        "vendor_name": "SOUTHERN STEEL TRADING SDN BHD",
+        "vendor_registration_no": "201901234567",
+        "vendor_tax_id": "C12345678901",
+        "vendor_address": null,
+        "vendor_contact": null,
+        "buyer_name": "Harapan Engineering Sdn Bhd",
+        "buyer_tax_id": null,
+        "buyer_address": null,
+        "currency": "MYR",
+        "subtotal": "1984.00",
+        "discount_amount": null,
+        "tax_rate": "8",
+        "tax_amount": "158.72",
+        "tax_lines": null,
+        "rounding_adjustment": null,
+        "total": "2142.72",
+        "amount_in_words": null,
+        "payment_terms": "30 days nett",
+        "bank_account": null,
+        "line_items": [
+          {
+            "description": "Hex bolt stainless M8 HBS-1000",
+            "quantity": "40",
+            "unit_price": "12.50",
+            "amount": "505.00",
+            "tax_code": null
+          },
+          "..."
+        ]
+      },
+      "fields": {
+        "amount_in_words": {
+          "value": null,
+          "raw_text": null,
+          "status": "missing",
+          "match": "not_checked",
+          "evidence": [],
+          "reasons": []
+        },
+        "bank_account": {
+          "value": null,
+          "raw_text": null,
+          "status": "missing",
+          "match": "not_checked",
+          "evidence": [],
+          "reasons": []
+        }
+      },
+      "validation": [
+        {
+          "code": "line_amount_mismatch",
+          "severity": "warning",
+          "path": "line_items[0].amount",
+          "message": "row 1: quantity times unit price is 500.00 but the amount reads 505.00"
+        },
+        {
+          "code": "line_sum_ne_subtotal",
+          "severity": "warning",
+          "path": "subtotal",
+          "message": "the line amounts sum to 1989.00 but the subtotal reads 1984.00"
+        }
+      ],
+      "reasons": [
+        "validation:line_amount_mismatch",
+        "validation:line_sum_ne_subtotal"
+      ],
+      "pipeline_version": "2026.10.1",
+      "created_at": "2026-10-07T06:58:31",
+      "_fields_note": "39 entries in total; 2 shown"
+    }
+  },
+  "POST /v1/extractions/{id}/decision": {
+    "status": 200,
+    "body": {
+      "extraction_id": "ext_1m4ajg5kcpz62mv25",
+      "status": "completed"
+    }
+  },
+  "POST /v1/schemas": {
+    "status": 201,
+    "body": {
+      "schema_id": "sch_1m4ajg5mb9sk7npn9",
+      "version": 1
+    }
+  },
+  "GET /v1/schemas/{id}": {
+    "status": 200,
+    "body": {
+      "schema_id": "sch_1m4ajg5mb9sk7npn9",
+      "name": "AP invoices",
+      "document_type": "invoice",
+      "template_id": "tpl_invoice_v1",
+      "current_version": 1,
+      "created_at": "2026-10-07T06:58:31",
+      "versions": [
+        {
+          "version": 1,
+          "created_at": "2026-10-07T06:58:31",
+          "test_run_status": "none",
+          "fields": [
+            "invoice_number",
+            "invoice_date",
+            "vendor_name",
+            "currency",
+            "subtotal",
+            "tax_amount",
+            "total",
+            "line_items"
+          ],
+          "locale_hints": {
+            "date_order": "DMY"
+          }
+        }
+      ]
+    }
+  },
+  "POST /v1/schemas/{id}/versions/{v}/test-runs": {
+    "status": 202,
+    "body": {
+      "test_run_id": "run_1m4ajg5xtf9hx7176",
+      "schema_id": "sch_1m4ajg5mb9sk7npn9",
+      "version": 1,
+      "status": "completed",
+      "passed": true,
+      "per_document": [
+        {
+          "document_id": "doc_1m4ajg58as2pr1vsb",
+          "status": "ok",
+          "fields_ok": 6,
+          "fields_total": 6
+        },
+        {
+          "document_id": "doc_1m4ajg5n3j2pgsd7f",
+          "status": "ok",
+          "fields_ok": 6,
+          "fields_total": 6
+        },
+        {
+          "document_id": "doc_1m4ajg5nebva4fey4",
+          "status": "ok",
+          "fields_ok": 6,
+          "fields_total": 6
+        }
+      ],
+      "created_at": "2026-10-07T06:58:31",
+      "finished_at": "2026-10-07T06:58:31.482172"
+    }
+  },
+  "GET /v1/schemas/{id}/versions/{v}/contract": {
+    "status": 200,
+    "body": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "AP invoices extraction, version 1",
+      "x-field-paths": [
+        "invoice_number",
+        "invoice_date",
+        "vendor_name",
+        "currency",
+        "subtotal",
+        "tax_amount",
+        "total",
+        "line_items[i].description",
+        "line_items[i].quantity",
+        "line_items[i].unit_price",
+        "line_items[i].amount",
+        "line_items[i].tax_code"
+      ],
+      "...": "plus properties for extraction_id, status, data, fields, validation"
+    }
+  },
+  "POST /v1/api-keys": {
+    "status": 201,
+    "body": {
+      "id": "key_1m4ajg5y8682kesb2",
+      "prefix": "fdip_test__Zs0xFo5",
+      "mode": "test",
+      "key": "fdip_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  (the real key appears here once)",
+      "detail": "store this key now; it is not retrievable"
+    }
+  },
+  "GET /v1/api-keys": {
+    "status": 200,
+    "body": [
+      {
+        "id": "key_1m4ajg5y8682kesb2",
+        "name": "ui demo",
+        "prefix": "fdip_test__Zs0xFo5",
+        "mode": "test",
+        "schema_versions": [
+          {
+            "schema_id": "sch_1m4ajg5mb9sk7npn9",
+            "version": 1
+          }
+        ],
+        "expires_at": null,
+        "revoked_at": null,
+        "last_used_at": null,
+        "created_at": "2026-10-07T06:58:31"
+      }
+    ]
+  },
+  "POST /v1/exports": {
+    "status": 201,
+    "body": {
+      "export_id": "exp_1m4ajg5ym3498767c",
+      "status": "ready",
+      "row_count": 1
+    }
+  },
+  "GET /v1/usage": {
+    "status": 200,
+    "body": {
+      "month": "2026-10",
+      "pages": 3,
+      "documents": 3,
+      "ai_cost_usd": 0.0,
+      "by_key": [
+        {
+          "api_key_id": null,
+          "pages": 3,
+          "documents": 3,
+          "ai_cost_usd": 0.0
+        }
+      ]
+    }
+  },
+  "GET /v1/health": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "database": "ok",
+      "provider_mode": "mock",
+      "model": "deepseek-flash",
+      "extract_thinking": "repair",
+      "worker_last_lease": null,
+      "pipeline_version": "2026.10.1"
+    }
+  },
+  "an error response (RFC 9457)": {
+    "status": 404,
+    "body": {
+      "type": "https://fdip.local/problems/not_found",
+      "title": "Not Found",
+      "status": 404,
+      "detail": "no such document",
+      "code": "not_found",
+      "instance": "/v1/documents/doc_does_not_exist"
+    }
+  }
+}

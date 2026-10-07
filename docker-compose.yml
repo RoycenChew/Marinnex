@@ -1,0 +1,55 @@
+# Optional. The supported path on Windows is the two commands in README_RUN.md
+# section 6; this exists so the same thing can be run on a server.
+#
+# Build context is the parent directory because the toolkit is a sibling folder
+# and Docker cannot copy from above its context.
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: fdip/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Both services share one SQLite file, which is why WAL mode matters.
+      FDIP_PROVIDER_MODE: "${FDIP_PROVIDER_MODE:-mock}"
+      FDIP_KEY_PEPPER: "${FDIP_KEY_PEPPER:?set FDIP_KEY_PEPPER}"
+      FDIP_SESSION_SECRET: "${FDIP_SESSION_SECRET:?set FDIP_SESSION_SECRET}"
+      FDIP_CORS_ORIGINS: "${FDIP_CORS_ORIGINS:-http://localhost:5173}"
+      FDIP_EXTRACT_THINKING: "${FDIP_EXTRACT_THINKING:-repair}"
+      FDIP_AI_MONTHLY_CEILING_USD: "${FDIP_AI_MONTHLY_CEILING_USD:-20}"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+    volumes:
+      - fdip-data:/data
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             uvicorn fdip.api.app:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request;urllib.request.urlopen('http://localhost:8000/v1/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: ..
+      dockerfile: fdip/Dockerfile
+    environment:
+      FDIP_PROVIDER_MODE: "${FDIP_PROVIDER_MODE:-mock}"
+      FDIP_KEY_PEPPER: "${FDIP_KEY_PEPPER:?set FDIP_KEY_PEPPER}"
+      FDIP_SESSION_SECRET: "${FDIP_SESSION_SECRET:?set FDIP_SESSION_SECRET}"
+      FDIP_EXTRACT_THINKING: "${FDIP_EXTRACT_THINKING:-repair}"
+      FDIP_AI_MONTHLY_CEILING_USD: "${FDIP_AI_MONTHLY_CEILING_USD:-20}"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+    volumes:
+      - fdip-data:/data
+    # One worker only. Two would both claim jobs, which the lease handles, but
+    # they would also contend for SQLite's single writer for no throughput gain.
+    command: ["python", "-m", "fdip.worker"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  fdip-data:
