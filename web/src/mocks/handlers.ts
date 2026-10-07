@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw';
 // them, which is also why vite.config.ts has to allow serving from outside the
 // web/ root.
 import examples from '../../../samples/examples.json';
+import { buildAnalysis, pageSvg } from './fixtures';
 
 /** One captured response, keyed as `"<METHOD> /v1/<path>"`. */
 type Example = { status: number; body: unknown };
@@ -13,6 +14,9 @@ type Example = { status: number; body: unknown };
 // response shape. Typing it per-route would duplicate the OpenAPI types that
 // already describe them.
 const captured = examples as unknown as Record<string, Example | undefined>;
+
+/** The captured body for a key, or undefined. */
+const captured_body = (key: string) => captured[key]?.body as Record<string, unknown> | undefined;
 
 const getResponse = (key: string) => {
   const example = captured[key];
@@ -42,8 +46,34 @@ export const handlers = [
     }
     return getResponse('GET /v1/documents/{id} (404, RFC 9457 error)');
   }),
-  http.get('*/v1/documents/:id/analysis', () => getResponse('GET /v1/documents/{id}/analysis')),
-  http.get('*/v1/documents/:id/extractions', () => HttpResponse.json([getResponse('GET /v1/documents/{id}/analysis').body], { status: 200 })), // Hacky extraction list
+  // The captured analysis body was trimmed to three fields when it was captured,
+  // which would leave the review screen with nothing to review. `fixtures.ts`
+  // rebuilds a full one from the same invoice. See its header.
+  http.get('*/v1/documents/:id/analysis', ({ params }) => {
+    const captured = captured_body('GET /v1/documents/{id}/analysis');
+    if (String(params.id).includes('scan')) {
+      return HttpResponse.json(
+        buildAnalysis({
+          status: 'needs_review',
+          reasons: ['scanned_document_review'],
+        }),
+      );
+    }
+    return HttpResponse.json(buildAnalysis(captured ?? {}));
+  }),
+
+  // Binary, so it was never captured. The SVG is laid out at the same
+  // coordinates as the mocked evidence boxes.
+  http.get('*/v1/documents/:id/pages/:page/image', () =>
+    // A plain HttpResponse, not HttpResponse.text(): the helper forces
+    // `text/plain`, which the browser refuses to decode as an image.
+    new HttpResponse(pageSvg(), {
+      headers: { 'Content-Type': 'image/svg+xml', 'X-Page-Dpi': '150' },
+    }),
+  ),
+  http.get('*/v1/documents/:id/extractions', () =>
+    HttpResponse.json([buildAnalysis({})]),
+  ),
   
   http.post('*/v1/extractions/:id/corrections', () => getResponse('POST /v1/extractions/{id}/corrections')),
   http.post('*/v1/extractions/:id/decision', () => getResponse('POST /v1/extractions/{id}/decision')),

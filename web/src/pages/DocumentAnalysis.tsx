@@ -1,276 +1,553 @@
-// @ts-nocheck
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../api/client';
-import { useAuth } from '../context/AuthContext';
-import clsx from 'clsx';
-import { AlertCircle, Check, Loader2, Save } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Group, Panel, Separator } from 'react-resizable-panels'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Download,
+  History,
+  Info,
+  ScanLine,
+  Sparkles,
+  X,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import {
+  correctExtraction,
+  decideExtraction,
+  getAnalysis,
+  getDocument,
+  listExtractions,
+} from '../api/queries'
+import { API_ORIGIN } from '../api/client'
+import type { Extraction } from '../api/types'
+import { useAuth } from '../context/AuthContext'
+import { Button } from '../components/ui/Button'
+import { Skeleton } from '../components/ui/Table'
+import { StatusBadge } from '../components/StatusBadge'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageViewer, boxesOf } from '../components/review/PageViewer'
+import { FieldRow, LineItemGrid, groupFields } from '../components/review/FieldPanel'
+import { formatDateTime } from '../lib/format'
+import {
+  SCAN_REVIEW_REASON,
+  humaniseReason,
+  problemMessage,
+  statusMeta,
+} from '../lib/status'
+import { cn } from '../lib/utils'
 
 export default function DocumentAnalysis() {
-  const { id } = useParams<{ id: string }>();
-  const { activeProjectId } = useAuth();
-  const queryClient = useQueryClient();
+  const { id = '' } = useParams()
+  const { activeProjectId } = useAuth()
+  const queryClient = useQueryClient()
 
-  const [activePage, setActivePage] = useState(1);
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [edits, setEdits] = useState<Record<string, string>>({});
-  const [rejectReason, setRejectReason] = useState('');
+  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [editingPath, setEditingPath] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [pending, setPending] = useState<Record<string, unknown>>({})
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+  const panelRef = useRef<HTMLDivElement>(null)
 
-  const { data: docInfo, isLoading: docLoading } = useQuery({
+  const documentQuery = useQuery({
     queryKey: ['document', id, activeProjectId],
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET('/v1/documents/{document_id}', {
-        params: { path: { document_id: id! }, query: { project_id: activeProjectId || undefined } }
-      });
-      if (error) throw error;
-      return data;
-    },
-    refetchInterval: (data) => data?.status === 'processing' ? 2000 : false
-  });
+    queryFn: () => getDocument(id, activeProjectId),
+    enabled: !!id,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'processing' ? 2000 : false,
+  })
 
-  const { data: analysis } = useQuery({
+  const analysisQuery = useQuery({
     queryKey: ['analysis', id, activeProjectId],
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET('/v1/documents/{document_id}/analysis', {
-        params: { path: { document_id: id! }, query: { project_id: activeProjectId || undefined } }
-      });
-      if (error) throw error;
-      return data;
+    queryFn: () => getAnalysis(id, activeProjectId),
+    enabled: !!id,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'processing' ? 2000 : false,
+  })
+
+  const versionsQuery = useQuery({
+    queryKey: ['extractions', id, activeProjectId],
+    queryFn: () => listExtractions(id, activeProjectId),
+    enabled: historyOpen,
+  })
+
+  const extraction = analysisQuery.data
+  const fields = extraction?.fields ?? {}
+  const groups = useMemo(() => groupFields(fields), [fields])
+  const boxes = useMemo(() => boxesOf(fields), [fields])
+  const scalarPaths = useMemo(
+    () => groups.filter((g) => g.key !== 'lineItems').flatMap((g) => g.paths),
+    [groups],
+  )
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!extraction) throw new Error('Nothing loaded')
+      const changes = Object.entries(pending).map(([path, value]) => ({ path, value }))
+      return correctExtraction(extraction.extraction_id, changes, undefined, activeProjectId)
     },
-    enabled: docInfo?.status !== 'processing',
-  });
-
-  const correctionsMutation = useMutation({
-    mutationFn: async (changes: { path: string, value: string }[]) => {
-      const { data, error } = await apiClient.POST('/v1/extractions/{extraction_id}/corrections', {
-        params: { path: { extraction_id: analysis?.extraction_id || '' } },
-        body: { changes, reason: 'User correction' }
-      });
-      if (error) throw error;
-      return data;
+    onSuccess: (next) => {
+      setPending({})
+      toast.success(`Saved as version ${next.version}`)
+      void queryClient.invalidateQueries({ queryKey: ['analysis', id] })
+      void queryClient.invalidateQueries({ queryKey: ['document', id] })
+      void queryClient.invalidateQueries({ queryKey: ['extractions', id] })
     },
-    onSuccess: () => {
-      setEditMode(false);
-      setEdits({});
-      queryClient.invalidateQueries({ queryKey: ['analysis', id] });
-    }
-  });
+    onError: (error) =>
+      toast.error('Not saved', { description: problemMessage(error) }),
+  })
 
-  const decisionMutation = useMutation({
-    mutationFn: async (decision: { action: 'approve' | 'reject', reason?: string }) => {
-      const { data, error } = await apiClient.POST('/v1/extractions/{extraction_id}/decision', {
-        params: { path: { extraction_id: analysis?.extraction_id || '' } },
-        body: decision
-      });
-      if (error) throw error;
-      return data;
+  const decideMutation = useMutation({
+    mutationFn: async (input: { action: 'approve' | 'reject'; reason?: string }) => {
+      if (!extraction) throw new Error('Nothing loaded')
+      return decideExtraction(
+        extraction.extraction_id,
+        input.action,
+        input.reason,
+        activeProjectId,
+      )
     },
-    onSuccess: () => {
-      setRejectReason('');
-      queryClient.invalidateQueries({ queryKey: ['document', id] });
-      queryClient.invalidateQueries({ queryKey: ['analysis', id] });
-    }
-  });
+    onSuccess: (result, input) => {
+      toast.success(input.action === 'approve' ? 'Approved' : 'Rejected')
+      void queryClient.invalidateQueries({ queryKey: ['analysis', id] })
+      void queryClient.invalidateQueries({ queryKey: ['document', id] })
+      void queryClient.invalidateQueries({ queryKey: ['documents'] })
+      return result
+    },
+    onError: (error) =>
+      toast.error('Not decided', { description: problemMessage(error) }),
+  })
 
-  const handleSaveCorrections = () => {
-    const changes = Object.entries(edits).map(([path, value]) => ({ path, value }));
-    if (changes.length > 0) {
-      correctionsMutation.mutate(changes);
-    } else {
-      setEditMode(false);
-    }
-  };
+  const startEdit = useCallback(
+    (path: string) => {
+      const current = pending[path] ?? fields[path]?.value
+      setDraft(current === null || current === undefined ? '' : String(current))
+      setEditingPath(path)
+    },
+    [fields, pending],
+  )
 
-  if (docLoading || (docInfo?.status === 'processing')) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center text-gray-500">
-          <Loader2 className="w-8 h-8 animate-spin mb-4" />
-          <p>Processing document...</p>
-        </div>
-      </div>
-    );
+  const commitEdit = useCallback(() => {
+    if (!editingPath) return
+    setPending((current) => ({ ...current, [editingPath]: draft }))
+    setEditingPath(null)
+  }, [editingPath, draft])
+
+  /*
+   * Keyboard: J/K move, E edits, A approves. Skipped while an input has focus,
+   * or typing "a" into a correction would approve the document.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const index = selectedPath ? scalarPaths.indexOf(selectedPath) : -1
+
+      if (event.key === 'j' || event.key === 'k') {
+        event.preventDefault()
+        if (scalarPaths.length === 0) return
+        const next =
+          event.key === 'j'
+            ? Math.min(index + 1, scalarPaths.length - 1)
+            : Math.max(index - 1, 0)
+        const path = scalarPaths[index === -1 ? 0 : next]
+        setSelectedPath(path)
+        document.getElementById(`field-${path}`)?.scrollIntoView({
+          block: 'nearest',
+        })
+      }
+      if (event.key === 'e' && selectedPath) {
+        event.preventDefault()
+        startEdit(selectedPath)
+      }
+      if (event.key === 'a' && extraction && extraction.status !== 'rejected') {
+        event.preventDefault()
+        if (Object.keys(pending).length > 0) {
+          toast.warning('Save your changes before approving')
+          return
+        }
+        decideMutation.mutate({ action: 'approve' })
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectedPath, scalarPaths, startEdit, extraction, pending, decideMutation])
+
+  const doc = documentQuery.data
+  const processing = extraction?.status === 'processing' || doc?.status === 'processing'
+  const dirty = Object.keys(pending).length > 0
+  const isScan = extraction?.reasons?.includes(SCAN_REVIEW_REASON)
+
+  if (analysisQuery.isLoading || documentQuery.isLoading) {
+    return <ReviewSkeleton />
   }
 
-  if (docInfo?.status === 'document_type_mismatch' || docInfo?.status === 'unsupported' || docInfo?.status === 'failed') {
+  if (analysisQuery.isError) {
     return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
-          <div>
-            <h3 className="font-medium">Cannot process document</h3>
-            <p className="text-sm mt-1">Status: {docInfo.status}</p>
-            {docInfo.error_code && <p className="text-sm">Error: {docInfo.error_code}</p>}
-          </div>
-        </div>
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+        <p className="text-base font-medium text-[var(--text-primary)]">
+          Not found, or not in this project
+        </p>
+        <p className="max-w-sm text-sm text-[var(--text-secondary)]">
+          {problemMessage(analysisQuery.error)}
+        </p>
+        <Link
+          to="/"
+          className="inline-flex h-8 items-center rounded-[var(--radius-sm)] border bg-[var(--surface-raised)] px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+        >
+          Back to documents
+        </Link>
       </div>
-    );
+    )
   }
-
-  if (!analysis) return null;
-
-  const isNeedsReview = analysis.status === 'needs_review';
-  const scale = 2.0833; // 150 DPI / 72
 
   return (
-    <div className="flex flex-col h-full gap-4">
-      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">{docInfo?.filename}</h1>
-          <p className="text-sm text-gray-500">Version {analysis.version} • {analysis.status}</p>
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-[var(--surface-raised)] px-4 py-2.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            to="/"
+            aria-label="Back to documents"
+            className="rounded-[var(--radius-sm)] p-1 text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold text-[var(--text-primary)]">
+              {doc?.filename ?? 'Document'}
+            </h1>
+            <p className="text-xs text-[var(--text-tertiary)]">
+              {doc?.document_type?.replace(/_/g, ' ') ?? 'unknown type'} ·{' '}
+              {doc?.pages ?? 0} page{doc?.pages === 1 ? '' : 's'}
+              {extraction ? ` · version ${extraction.version}` : ''}
+            </p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          {editMode ? (
-            <>
-              <button 
-                onClick={() => setEditMode(false)}
-                className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSaveCorrections}
-                disabled={correctionsMutation.isPending}
-                className="px-3 py-1.5 bg-primary-dark text-white rounded text-sm flex items-center gap-1 hover:bg-primary-light"
-              >
-                {correctionsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save
-              </button>
-            </>
-          ) : (
-            <button 
-              onClick={() => setEditMode(true)}
-              disabled={analysis.status === 'rejected'}
-              className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-            >
-              Edit
-            </button>
-          )}
-          
-          {!editMode && analysis.status !== 'rejected' && analysis.status !== 'completed' && (
-            <>
-              <button 
-                onClick={() => decisionMutation.mutate({ action: 'reject', reason: rejectReason || 'Manual rejection' })}
-                disabled={decisionMutation.isPending}
-                className="px-3 py-1.5 border border-red-300 text-red-700 rounded text-sm hover:bg-red-50 flex items-center gap-1"
-              >
-                Reject
-              </button>
-              <button 
-                onClick={() => decisionMutation.mutate({ action: 'approve' })}
-                disabled={decisionMutation.isPending}
-                className="px-3 py-1.5 bg-green-600 text-white rounded text-sm flex items-center gap-1 hover:bg-green-700"
-              >
-                <Check className="w-4 h-4" />
-                Approve
-              </button>
-            </>
-          )}
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusBadge status={extraction?.status ?? doc?.status} code={doc?.error_code} />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setHistoryOpen(true)}
+            aria-label="Version history"
+          >
+            <History className="h-3.5 w-3.5" />
+            History
+          </Button>
+          <a
+            href={`${API_ORIGIN}/v1/documents/${id}/file`}
+            className="inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Original
+          </a>
         </div>
       </div>
 
-      {isNeedsReview && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md flex items-start gap-2 text-sm">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <div>
-            <span className="font-medium">Needs Review: </span>
-            {analysis.reasons?.join(', ')}
-            {analysis.reasons?.includes('scanned_document_review') && (
-               <div className="mt-1 font-medium text-amber-900">Scanned documents are reviewed by a person before acceptance.</div>
+      {/* Banners */}
+      {isScan && (
+        <Banner
+          tone="info"
+          icon={<ScanLine className="h-4 w-4" />}
+          title="Scanned documents are reviewed by a person before acceptance."
+          body="This is routine for any scan, not a judgement about this file. OCR evidence is checked by hand until route B is measured."
+        />
+      )}
+      {extraction?.status === 'document_type_mismatch' && (
+        <Banner
+          tone="danger"
+          icon={<AlertTriangle className="h-4 w-4" />}
+          title="This document is not the type the schema expects."
+          body="No data was extracted. Upload it against a schema for its own document type."
+        />
+      )}
+      {extraction?.status === 'needs_review' && !isScan && (
+        <Banner
+          tone="warning"
+          icon={<Info className="h-4 w-4" />}
+          title={statusMeta('needs_review').help}
+          body={
+            extraction.reasons.length > 0
+              ? extraction.reasons.map(humaniseReason).join(' · ')
+              : undefined
+          }
+        />
+      )}
+
+      {processing ? (
+        <ProcessingState />
+      ) : (
+        <Group orientation="horizontal" className="flex min-h-0 flex-1">
+          <Panel defaultSize="56" minSize="30">
+            {doc && (
+              <PageViewer
+                documentId={id}
+                projectId={activeProjectId}
+                pageCount={doc.pages || 1}
+                pageSizes={doc.page_sizes ?? {}}
+                boxes={boxes}
+                selectedPath={selectedPath}
+                onSelectPath={setSelectedPath}
+              />
             )}
-          </div>
+          </Panel>
+
+          <Separator className="w-px shrink-0 cursor-col-resize bg-[var(--border-subtle)] transition-colors hover:bg-[var(--accent-solid)] data-[separator]:data-[active]:bg-[var(--accent-solid)]" />
+
+          <Panel defaultSize="44" minSize="28">
+            <div className="flex h-full flex-col bg-[var(--surface-raised)]">
+              <div
+                ref={panelRef}
+                className="min-h-0 flex-1 overflow-y-auto"
+              >
+                {groups.map((group) => (
+                  <section key={group.key}>
+                    <h2 className="sticky top-0 z-10 border-b bg-[var(--surface-sunken)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                      {group.label}
+                    </h2>
+                    {group.key === 'lineItems' && extraction ? (
+                      <LineItemGrid
+                        extraction={extraction}
+                        selectedPath={selectedPath}
+                        onSelectPath={setSelectedPath}
+                      />
+                    ) : (
+                      <div className="divide-y">
+                        {group.paths.map((path) => (
+                          <FieldRow
+                            key={path}
+                            path={path}
+                            entry={{
+                              ...fields[path],
+                              value:
+                                path in pending ? pending[path] : fields[path].value,
+                              status:
+                                path in pending ? 'corrected' : fields[path].status,
+                            }}
+                            selected={selectedPath === path}
+                            editing={editingPath === path}
+                            draft={draft}
+                            onSelect={() => setSelectedPath(path)}
+                            onEdit={() => startEdit(path)}
+                            onDraft={setDraft}
+                            onCommit={commitEdit}
+                            onCancel={() => setEditingPath(null)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </div>
+
+              {/* Sticky action bar */}
+              <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-[var(--surface-raised)] px-3 py-2">
+                <span className="text-xs text-[var(--text-tertiary)]">
+                  {dirty
+                    ? `${Object.keys(pending).length} unsaved change${Object.keys(pending).length === 1 ? '' : 's'}`
+                    : 'J/K move · E edit · A approve'}
+                </span>
+                <div className="flex items-center gap-2">
+                  {dirty && (
+                    <Button variant="ghost" size="sm" onClick={() => setPending({})}>
+                      Discard
+                    </Button>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={saveMutation.isPending}
+                    disabled={!dirty}
+                    onClick={() => saveMutation.mutate()}
+                  >
+                    Save changes
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRejecting(true)}
+                    disabled={extraction?.status === 'rejected'}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Reject
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    // Never approve over unsaved edits: the approval would apply
+                    // to the version on the server, not the one on screen.
+                    disabled={dirty || extraction?.status === 'rejected'}
+                    loading={decideMutation.isPending}
+                    onClick={() => decideMutation.mutate({ action: 'approve' })}
+                    title={dirty ? 'Save your changes first' : undefined}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Approve
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Panel>
+        </Group>
+      )}
+
+      {/* Version history drawer */}
+      {historyOpen && (
+        <div
+          className="fixed inset-0 z-40 flex justify-end bg-[var(--color-slate-950)]/30"
+          onClick={() => setHistoryOpen(false)}
+        >
+          <aside
+            onClick={(e) => e.stopPropagation()}
+            className="h-full w-80 overflow-y-auto border-l bg-[var(--surface-overlay)] p-4 shadow-lg"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+                Version history
+              </h2>
+              <Button size="icon" variant="ghost" onClick={() => setHistoryOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            {versionsQuery.isLoading && <Skeleton className="h-16 w-full" />}
+            <ul className="flex flex-col gap-2">
+              {(versionsQuery.data ?? []).map((version: Extraction) => (
+                <li
+                  key={version.extraction_id}
+                  className={cn(
+                    'rounded-[var(--radius-md)] border p-2.5',
+                    version.extraction_id === extraction?.extraction_id &&
+                      'border-[var(--accent-solid)] bg-[var(--surface-selected)]',
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      Version {version.version}
+                    </span>
+                    <StatusBadge status={version.status} />
+                  </div>
+                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+                    {formatDateTime(version.created_at)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </aside>
         </div>
       )}
 
-      <div className="flex flex-1 gap-4 overflow-hidden">
-        {/* Left: Document Viewer */}
-        <div className="w-1/2 bg-gray-200 rounded-lg overflow-auto relative flex flex-col items-center p-4">
-          <div className="relative inline-block bg-white shadow-md">
-            <img 
-              src={`${import.meta.env.VITE_API_BASE || 'http://localhost:8000/v1'}/documents/${id}/pages/${activePage}/image`} 
-              alt="Document Page" 
-              className="block"
-              crossOrigin="use-credentials"
+      <ConfirmDialog
+        open={rejecting}
+        onOpenChange={setRejecting}
+        title="Reject this extraction?"
+        destructive
+        confirmLabel="Reject"
+        description={
+          <span className="block">
+            A rejected extraction is read-only and cannot be corrected afterwards.
+            A reason is required.
+            <input
+              autoFocus
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. duplicate of INV-2026-0417"
+              className="mt-3 w-full rounded-[var(--radius-sm)] border bg-[var(--surface-raised)] px-2 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
             />
-            {/* Draw BBoxes */}
-            {Object.entries(analysis.fields || {}).map(([path, field]: [string, any]) => {
-              if (field.status === 'missing' || field.match === 'not_checked') return null;
-              
-              return (field.evidence || []).map((ev: any, idx: number) => {
-                if (ev.page !== activePage) return null;
-                const [x0, y0, x1, y1] = ev.bbox;
-                const isSelected = selectedPath === path;
-                return (
-                  <div 
-                    key={`${path}-${idx}`}
-                    onClick={() => setSelectedPath(path)}
-                    className={clsx(
-                      "absolute border cursor-pointer transition-colors",
-                      isSelected ? "border-primary-dark bg-primary-light/20 z-10" : "border-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/40"
-                    )}
-                    style={{
-                      left: x0 * scale,
-                      top: y0 * scale,
-                      width: (x1 - x0) * scale,
-                      height: (y1 - y0) * scale
-                    }}
-                  />
-                );
-              });
-            })}
-          </div>
+          </span>
+        }
+        loading={decideMutation.isPending}
+        onConfirm={() => {
+          if (!rejectReason.trim()) {
+            toast.error('A reason is required to reject')
+            return
+          }
+          decideMutation.mutate({ action: 'reject', reason: rejectReason })
+          setRejecting(false)
+          setRejectReason('')
+        }}
+      />
+    </div>
+  )
+}
+
+function Banner({
+  tone,
+  icon,
+  title,
+  body,
+}: {
+  tone: 'info' | 'warning' | 'danger'
+  icon: React.ReactNode
+  title: string
+  body?: string
+}) {
+  const tones = {
+    info: 'bg-[var(--color-info-50)] text-[var(--color-info-700)] dark:bg-[var(--color-info-500)]/10 dark:text-[var(--color-info-500)]',
+    warning:
+      'bg-[var(--color-warning-50)] text-[var(--color-warning-700)] dark:bg-[var(--color-warning-500)]/10 dark:text-[var(--color-warning-500)]',
+    danger:
+      'bg-[var(--color-danger-50)] text-[var(--color-danger-700)] dark:bg-[var(--color-danger-500)]/10 dark:text-[var(--color-danger-500)]',
+  }
+  return (
+    <div className={cn('flex shrink-0 items-start gap-2 border-b px-4 py-2', tones[tone])}>
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-sm font-medium">{title}</p>
+        {body && <p className="mt-0.5 text-xs opacity-90">{body}</p>}
+      </div>
+    </div>
+  )
+}
+
+function ProcessingState() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
+      <Sparkles className="h-6 w-6 animate-pulse text-[var(--text-tertiary)]" />
+      <p className="text-base font-medium text-[var(--text-primary)]">
+        Extracting this document
+      </p>
+      <p className="max-w-sm text-sm text-[var(--text-secondary)]">
+        This page updates itself every couple of seconds. A one-page invoice
+        usually takes under 15 seconds.
+      </p>
+    </div>
+  )
+}
+
+/** Skeletons rather than a spinner, as the UI spec asks for this screen. */
+function ReviewSkeleton() {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-3 border-b bg-[var(--surface-raised)] px-4 py-2.5">
+        <Skeleton className="h-4 w-4" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="flex-1 bg-[var(--surface-sunken)] p-4">
+          <Skeleton className="mx-auto h-full w-full max-w-xl" />
         </div>
-
-        {/* Right: Data Fields */}
-        <div className="w-1/2 bg-white rounded-lg shadow-sm border border-gray-200 overflow-y-auto p-4 flex flex-col gap-6">
-          
-          <div>
-             <h3 className="font-semibold text-gray-900 mb-3 border-b pb-2">Extracted Fields</h3>
-             <div className="grid grid-cols-2 gap-4">
-                {Object.entries(analysis.fields || {}).filter(([path]) => !path.startsWith('line_items')).map(([path, field]: [string, any]) => {
-                   const val = edits[path] !== undefined ? edits[path] : field.value;
-                   const isMissing = field.status === 'missing';
-                   return (
-                     <div 
-                        key={path} 
-                        className={clsx("p-2 rounded border transition-colors cursor-pointer", selectedPath === path ? "border-primary-dark bg-primary-light/5" : "border-gray-100 hover:border-gray-300")}
-                        onClick={() => setSelectedPath(path)}
-                     >
-                        <div className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wider">{path}</div>
-                        {editMode ? (
-                           <input 
-                              type="text" 
-                              value={val || ''}
-                              onChange={(e) => setEdits({ ...edits, [path]: e.target.value })}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-primary-dark"
-                           />
-                        ) : (
-                           <div className={clsx("text-sm font-medium", isMissing && "text-gray-400 italic")}>
-                              {isMissing ? 'Not on document' : (val || '-')}
-                           </div>
-                        )}
-                        <div className="mt-1 flex items-center gap-1">
-                           <span className={clsx(
-                              "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                              field.match === 'exact' ? "bg-green-100 text-green-800" :
-                              field.match === 'derived' ? "bg-blue-100 text-blue-800" :
-                              field.match === 'fuzzy_ocr' ? "bg-amber-100 text-amber-800" :
-                              field.match === 'not_found' ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-600"
-                           )}>
-                              {field.match}
-                           </span>
-                           {field.status === 'needs_review' && <AlertCircle className="w-3 h-3 text-amber-500" />}
-                        </div>
-                     </div>
-                   );
-                })}
-             </div>
-          </div>
-
+        <div className="w-[44%] border-l bg-[var(--surface-raised)] p-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="mb-4">
+              <Skeleton className="mb-1.5 h-3 w-24" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          ))}
         </div>
       </div>
     </div>
-  );
+  )
 }
