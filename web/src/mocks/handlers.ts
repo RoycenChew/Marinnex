@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw';
 // them, which is also why vite.config.ts has to allow serving from outside the
 // web/ root.
 import examples from '../../../samples/examples.json';
-import { buildAnalysis, pageSvg } from './fixtures';
+import { buildAnalysis, buildSchemaList, buildTemplate, pageSvg } from './fixtures';
 
 /** One captured response, keyed as `"<METHOD> /v1/<path>"`. */
 type Example = { status: number; body: unknown };
@@ -34,7 +34,8 @@ export const handlers = [
   http.get('*/v1/auth/me', () => getResponse('GET /v1/auth/me')),
   http.post('*/v1/auth/login', () => HttpResponse.json({}, { status: 200 })),
   http.post('*/v1/auth/logout', () => HttpResponse.json({}, { status: 204 })),
-  http.get('*/v1/templates', () => getResponse('GET /v1/templates')),
+  // Captured with three of its fields; the builder needs all of them.
+  http.get('*/v1/templates', () => HttpResponse.json(buildTemplate())),
   http.post('*/v1/documents', () => getResponse('POST /v1/documents')),
   http.get('*/v1/documents', () => getResponse('GET /v1/documents')),
   
@@ -79,7 +80,7 @@ export const handlers = [
   http.post('*/v1/extractions/:id/decision', () => getResponse('POST /v1/extractions/{id}/decision')),
   
   http.post('*/v1/schemas', () => getResponse('POST /v1/schemas')),
-  http.get('*/v1/schemas', () => HttpResponse.json([{ id: "sch_1m4an4fr241j5spk4", version: 1, name: "AP invoices" }], { status: 200 })), // Not in example directly
+  http.get('*/v1/schemas', () => HttpResponse.json(buildSchemaList())),
   http.get('*/v1/schemas/:id', () => getResponse('GET /v1/schemas/{id}')),
   
   http.post('*/v1/schemas/:id/versions/:v/test-runs', () => getResponse('POST /v1/schemas/{id}/versions/{v}/test-runs')),

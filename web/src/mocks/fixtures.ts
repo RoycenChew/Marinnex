@@ -187,3 +187,79 @@ function escapeXml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 }
+
+/**
+ * The full invoice template.
+ *
+ * `GET /v1/templates` was captured with only three of its fields, so the schema
+ * builder would offer three checkboxes. These are the real paths and labels from
+ * `fdip/domain/templates.py`, with its descriptions shortened to one line each.
+ */
+const TEMPLATE_FIELDS: [string, string, string, boolean][] = [
+  ['document_type', 'Document type', 'Invoice or credit note. A credit note reduces what is owed.', true],
+  ['invoice_number', 'Invoice number', 'Labelled Invoice No, No. Invois or No. Nota Kredit.', true],
+  ['invoice_date', 'Invoice date', 'Labelled Date or Tarikh. Malaysian documents write the day first.', true],
+  ['due_date', 'Due date', 'Labelled Payment Due or Tarikh Bayaran.', false],
+  ['po_number', 'PO number', "The buyer's purchase order reference.", false],
+  ['do_number', 'DO number', 'The delivery order reference, labelled DO No.', false],
+  ['vendor_name', 'Vendor name', 'The supplier issuing the document. Not the buyer.', true],
+  ['vendor_registration_no', 'Vendor registration no', 'Labelled Co. No, ROC or No. Pendaftaran.', false],
+  ['vendor_tax_id', 'Vendor tax ID', 'Labelled Tax ID, SST No or No. Cukai.', false],
+  ['vendor_address', 'Vendor address', "The supplier's full address as printed.", false],
+  ['vendor_contact', 'Vendor contact', "The supplier's telephone, fax or email.", false],
+  ['buyer_name', 'Buyer name', 'Labelled Bill To, Sold To or Bil Kepada.', false],
+  ['buyer_tax_id', 'Buyer tax ID', "The buyer's tax registration number if printed.", false],
+  ['buyer_address', 'Buyer address', 'The billing address as printed.', false],
+  ['currency', 'Currency', 'ISO 4217 code. RM and MYR both mean MYR.', true],
+  ['subtotal', 'Subtotal', 'Total of the line items before tax. Labelled Jumlah Kecil.', true],
+  ['discount_amount', 'Discount', 'Any discount deducted before tax. Omitted when not printed.', false],
+  ['tax_rate', 'Tax rate', 'The percentage as a number, so 8 for 8 per cent.', false],
+  ['tax_amount', 'Tax amount', 'The tax in currency, not the percentage.', false],
+  ['tax_lines', 'Tax lines', 'One entry per rate when the document shows more than one.', false],
+  ['rounding_adjustment', 'Rounding', 'Malaysian invoices round to the nearest 5 sen.', false],
+  ['total', 'Total', 'The final amount payable. Labelled Jumlah Besar.', true],
+  ['amount_in_words', 'Amount in words', 'The total written out, if printed.', false],
+  ['payment_terms', 'Payment terms', 'For example 30 days nett or C.O.D.', false],
+  ['bank_account', 'Bank account', "The supplier's account number for payment.", false],
+  ['line_items', 'Line items', 'One entry per goods or service row in the table.', true],
+  ['line_items[].description', 'Description', 'The whole cell verbatim, including any part code.', true],
+  ['line_items[].quantity', 'Qty', 'Units ordered, labelled Qty or Kuantiti.', true],
+  ['line_items[].unit_price', 'Unit price', 'Price for one unit, labelled Harga Seunit.', true],
+  ['line_items[].amount', 'Amount', 'The row total, labelled Jumlah.', true],
+  ['line_items[].tax_code', 'Tax code', 'Per-row tax code, if the table has that column.', false],
+]
+
+export function buildTemplate() {
+  return [
+    {
+      id: 'tpl_invoice_v1',
+      document_type: 'invoice',
+      version: 1,
+      name: 'Malaysian supplier invoice',
+      description:
+        'A Malaysian supplier invoice or credit note. Labels may be in English or Malay.',
+      fields: TEMPLATE_FIELDS.map(([path, label, description, required]) => ({
+        path,
+        label,
+        type: path.includes('amount') || path.includes('total') ? 'decimal' : 'string',
+        description,
+        required_default: required,
+        is_array: path === 'line_items' || path === 'tax_lines',
+      })),
+    },
+  ]
+}
+
+export function buildSchemaList() {
+  return [
+    {
+      schema_id: 'sch_1m4an4fr241j5spk4',
+      name: 'AP invoices',
+      document_type: 'invoice',
+      template_id: 'tpl_invoice_v1',
+      current_version: 1,
+      created_at: '2026-10-07T07:44:34',
+      versions: [],
+    },
+  ]
+}
