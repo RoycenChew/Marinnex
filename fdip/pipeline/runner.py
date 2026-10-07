@@ -155,6 +155,11 @@ def build_steps(context: JobContext) -> list[Step]:
             extracted, context.spec,
             document_text=str(ctx["parse"].get("text", "")),
             allow_ocr_auto_accept=context.settings.scan_auto_accept,
+            # Stage 6 now runs for every purpose. The pipeline still refuses
+            # outright above; an interactive upload shows what was found and
+            # carries `document_type_mismatch` as a reason instead.
+            classification=ctx["classify"],
+            expected_type=context.expected_type,
         )
 
     def persist(ctx: Mapping[str, Any]) -> dict[str, Any]:
@@ -216,7 +221,9 @@ def _persist(context: JobContext, ctx: Mapping[str, Any]) -> dict[str, Any]:
             status=decided["status"],
             document_type=classification["label"],
             currency=decided.get("currency"),
-            data=extracted.get("data") or {},
+            # The decided data, not the raw extraction: `document_type` is
+            # overwritten there with the classifier's answer.
+            data=decided.get("data") or extracted.get("data") or {},
             reasons=decided.get("reasons") or [],
             suggested_fields=decided.get("suggested_fields") or [],
             schema_valid=bool(extracted.get("schema_valid", True)),

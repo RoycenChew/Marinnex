@@ -1,6 +1,143 @@
 {
   "components": {
     "schemas": {
+      "ApiKeyCreated": {
+        "description": "The only response that carries the key, and only once.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "test"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "prefix",
+          "mode",
+          "key",
+          "detail"
+        ],
+        "title": "ApiKeyCreated",
+        "type": "object"
+      },
+      "ApiKeyView": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "test"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "schema_versions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Schema Versions",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "expired",
+              "revoked"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "mode",
+          "schema_versions",
+          "status"
+        ],
+        "title": "ApiKeyView",
+        "type": "object"
+      },
       "Body_extract_v1_extract_post": {
         "properties": {
           "file": {
@@ -55,6 +192,30 @@
           "path"
         ],
         "title": "Change",
+        "type": "object"
+      },
+      "ClassificationView": {
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "ClassificationView",
         "type": "object"
       },
       "CorrectionRequest": {
@@ -236,6 +397,457 @@
         "title": "DecisionRequest",
         "type": "object"
       },
+      "DecisionResult": {
+        "properties": {
+          "extraction_id": {
+            "title": "Extraction Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "extraction_id",
+          "status"
+        ],
+        "title": "DecisionResult",
+        "type": "object"
+      },
+      "DocumentDetail": {
+        "properties": {
+          "classification_confidence_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClassificationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "document_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Type"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mime": {
+            "title": "Mime",
+            "type": "string"
+          },
+          "page_image_dpi": {
+            "title": "Page Image Dpi",
+            "type": "integer"
+          },
+          "page_sizes": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Page Sizes",
+            "type": "object"
+          },
+          "pages": {
+            "title": "Pages",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "mime",
+          "pages",
+          "page_sizes",
+          "status",
+          "page_image_dpi"
+        ],
+        "title": "DocumentDetail",
+        "type": "object"
+      },
+      "DocumentList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DocumentList",
+        "type": "object"
+      },
+      "DocumentListItem": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "document_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Type"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "pages": {
+            "title": "Pages",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "status",
+          "pages"
+        ],
+        "title": "DocumentListItem",
+        "type": "object"
+      },
+      "EvidenceView": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "ocr_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Confidence"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "page",
+          "source"
+        ],
+        "title": "EvidenceView",
+        "type": "object"
+      },
+      "ExportJob": {
+        "properties": {
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_id",
+          "status",
+          "row_count"
+        ],
+        "title": "ExportJob",
+        "type": "object"
+      },
+      "Extraction": {
+        "additionalProperties": true,
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Type"
+          },
+          "extraction_id": {
+            "title": "Extraction Id",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FieldEntry"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "pipeline_version": {
+            "title": "Pipeline Version",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "schema": {
+            "$ref": "#/components/schemas/SchemaRef"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "suggested_fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Fields"
+          },
+          "validation": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationView"
+            },
+            "title": "Validation",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "extraction_id",
+          "document_id",
+          "version",
+          "status",
+          "schema",
+          "data",
+          "fields",
+          "validation",
+          "reasons",
+          "pipeline_version"
+        ],
+        "title": "Extraction",
+        "type": "object"
+      },
+      "FieldEntry": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceView"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "match": {
+            "title": "Match",
+            "type": "string"
+          },
+          "raw_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Text"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "status",
+          "match",
+          "evidence",
+          "reasons"
+        ],
+        "title": "FieldEntry",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -247,6 +859,135 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Health": {
+        "properties": {
+          "database": {
+            "title": "Database",
+            "type": "string"
+          },
+          "extract_thinking": {
+            "title": "Extract Thinking",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "pipeline_version": {
+            "title": "Pipeline Version",
+            "type": "string"
+          },
+          "provider_mode": {
+            "title": "Provider Mode",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "worker_last_lease": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Last Lease"
+          }
+        },
+        "required": [
+          "status",
+          "database",
+          "provider_mode",
+          "model",
+          "extract_thinking",
+          "pipeline_version"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "JobView": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "attempts"
+        ],
+        "title": "JobView",
         "type": "object"
       },
       "LocaleHintsIn": {
@@ -322,6 +1063,70 @@
         "title": "NewVersion",
         "type": "object"
       },
+      "PendingAnalysis": {
+        "description": "What `/analysis` returns before the worker has finished.",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FieldEntry"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "suggested_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Suggested Fields",
+            "type": "array"
+          },
+          "validation": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationView"
+            },
+            "title": "Validation",
+            "type": "array"
+          }
+        },
+        "required": [
+          "document_id",
+          "status",
+          "data",
+          "fields",
+          "validation",
+          "suggested_fields",
+          "detail"
+        ],
+        "title": "PendingAnalysis",
+        "type": "object"
+      },
       "ProjectRef": {
         "properties": {
           "id": {
@@ -338,6 +1143,42 @@
           "name"
         ],
         "title": "ProjectRef",
+        "type": "object"
+      },
+      "SchemaCreated": {
+        "properties": {
+          "schema_id": {
+            "title": "Schema Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_id",
+          "version"
+        ],
+        "title": "SchemaCreated",
+        "type": "object"
+      },
+      "SchemaRef": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "title": "SchemaRef",
         "type": "object"
       },
       "SchemaVersionRef": {
@@ -358,6 +1199,104 @@
         "title": "SchemaVersionRef",
         "type": "object"
       },
+      "SchemaVersionView": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "locale_hints": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Locale Hints",
+            "type": "object"
+          },
+          "test_run_status": {
+            "title": "Test Run Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "test_run_status",
+          "fields",
+          "locale_hints"
+        ],
+        "title": "SchemaVersionView",
+        "type": "object"
+      },
+      "SchemaView": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "current_version": {
+            "title": "Current Version",
+            "type": "integer"
+          },
+          "document_type": {
+            "title": "Document Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "schema_id": {
+            "title": "Schema Id",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/SchemaVersionView"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_id",
+          "name",
+          "document_type",
+          "template_id",
+          "current_version"
+        ],
+        "title": "SchemaView",
+        "type": "object"
+      },
       "SessionUser": {
         "properties": {
           "email": {
@@ -376,6 +1315,214 @@
         "title": "SessionUser",
         "type": "object"
       },
+      "Template": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "document_type": {
+            "title": "Document Type",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "document_type",
+          "version",
+          "name",
+          "description",
+          "fields"
+        ],
+        "title": "Template",
+        "type": "object"
+      },
+      "TemplateField": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enum": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enum"
+          },
+          "grounding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding"
+          },
+          "is_array": {
+            "title": "Is Array",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "money": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Money"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "required_default": {
+            "title": "Required Default",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "label",
+          "type",
+          "description",
+          "required_default",
+          "is_array"
+        ],
+        "title": "TemplateField",
+        "type": "object"
+      },
+      "TestRun": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "per_document": {
+            "items": {
+              "$ref": "#/components/schemas/TestRunDocument"
+            },
+            "title": "Per Document",
+            "type": "array"
+          },
+          "schema_id": {
+            "title": "Schema Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "test_run_id": {
+            "title": "Test Run Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "test_run_id",
+          "schema_id",
+          "version",
+          "status",
+          "passed",
+          "per_document"
+        ],
+        "title": "TestRun",
+        "type": "object"
+      },
+      "TestRunDocument": {
+        "properties": {
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "fields_ok": {
+            "title": "Fields Ok",
+            "type": "integer"
+          },
+          "fields_total": {
+            "title": "Fields Total",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "status",
+          "fields_ok",
+          "fields_total"
+        ],
+        "title": "TestRunDocument",
+        "type": "object"
+      },
       "TestRunRequest": {
         "properties": {
           "document_ids": {
@@ -392,6 +1539,110 @@
           "document_ids"
         ],
         "title": "TestRunRequest",
+        "type": "object"
+      },
+      "UploadAccepted": {
+        "properties": {
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "reused": {
+            "title": "Reused",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "status",
+          "reused"
+        ],
+        "title": "UploadAccepted",
+        "type": "object"
+      },
+      "Usage": {
+        "properties": {
+          "ai_cost_usd": {
+            "title": "Ai Cost Usd",
+            "type": "number"
+          },
+          "by_key": {
+            "items": {
+              "$ref": "#/components/schemas/UsageByKey"
+            },
+            "title": "By Key",
+            "type": "array"
+          },
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "pages": {
+            "title": "Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "pages",
+          "documents",
+          "ai_cost_usd",
+          "by_key"
+        ],
+        "title": "Usage",
+        "type": "object"
+      },
+      "UsageByKey": {
+        "properties": {
+          "ai_cost_usd": {
+            "title": "Ai Cost Usd",
+            "type": "number"
+          },
+          "api_key_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Id"
+          },
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "pages": {
+            "title": "Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pages",
+          "documents",
+          "ai_cost_usd"
+        ],
+        "title": "UsageByKey",
         "type": "object"
       },
       "ValidationError": {
@@ -433,6 +1684,40 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "ValidationView": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "title": "ValidationView",
+        "type": "object"
       }
     }
   },
@@ -446,14 +1731,33 @@
     "/v1/api-keys": {
       "get": {
         "operationId": "list_api_keys_v1_api_keys_get",
+        "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/ApiKeyView"
                   },
                   "title": "Response List Api Keys V1 Api Keys Get",
                   "type": "array"
@@ -461,6 +1765,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Api Keys",
@@ -471,6 +1785,26 @@
       "post": {
         "description": "Issue a key. The `key` field in this response is the only copy.\n\nWhat is stored is `HMAC-SHA256(server_pepper, key)`. So a lost key cannot be\nrecovered -- only revoked and replaced -- and a stolen database cannot be\nreplayed against the API.",
         "operationId": "create_api_key_v1_api_keys_post",
+        "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -486,9 +1820,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Api Key V1 Api Keys Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ApiKeyCreated"
                 }
               }
             },
@@ -522,6 +1854,24 @@
             "schema": {
               "title": "Key Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
             }
           }
         ],
@@ -605,6 +1955,26 @@
     "/v1/auth/me": {
       "get": {
         "operationId": "me_v1_auth_me_get",
+        "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -615,6 +1985,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Me",
@@ -712,6 +2092,24 @@
               ],
               "title": "Cursor"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -719,9 +2117,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Documents V1 Documents Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DocumentList"
                 }
               }
             },
@@ -746,6 +2142,24 @@
       "post": {
         "operationId": "upload_v1_documents_post",
         "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          },
           {
             "in": "header",
             "name": "Idempotency-Key",
@@ -778,9 +2192,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Upload V1 Documents Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/UploadAccepted"
                 }
               }
             },
@@ -816,6 +2228,24 @@
               "title": "Document Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -849,6 +2279,24 @@
               "title": "Document Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -856,9 +2304,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Document V1 Documents  Document Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DocumentDetail"
                 }
               }
             },
@@ -894,6 +2340,24 @@
               "title": "Document Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -901,9 +2365,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Analysis V1 Documents  Document Id  Analysis Get",
-                  "type": "object"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Extraction"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PendingAnalysis"
+                    }
+                  ],
+                  "title": "Response Analysis V1 Documents  Document Id  Analysis Get"
                 }
               }
             },
@@ -938,6 +2408,24 @@
               "title": "Document Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -946,8 +2434,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/Extraction"
                   },
                   "title": "Response List Extractions V1 Documents  Document Id  Extractions Get",
                   "type": "array"
@@ -984,6 +2471,24 @@
             "schema": {
               "title": "Document Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
             }
           }
         ],
@@ -1035,6 +2540,24 @@
               "title": "Page Number",
               "type": "integer"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -1067,6 +2590,26 @@
       "post": {
         "description": "Build the file now, synchronously.\n\nAn export of a few thousand rows takes well under a second, and a background\njob for it would need its own state machine for no gain. `GET /exports/{id}`\nexists anyway so the UI does not have to care which it is.",
         "operationId": "create_export_v1_exports_post",
+        "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1082,9 +2625,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Export V1 Exports Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ExportJob"
                 }
               }
             },
@@ -1118,6 +2659,24 @@
             "schema": {
               "title": "Export Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
             }
           }
         ],
@@ -1214,6 +2773,24 @@
               "title": "Extraction Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -1221,9 +2798,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Extraction V1 Extractions  Extraction Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Extraction"
                 }
               }
             },
@@ -1258,6 +2833,24 @@
               "title": "Extraction Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "requestBody": {
@@ -1275,9 +2868,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Correct V1 Extractions  Extraction Id  Corrections Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Extraction"
                 }
               }
             },
@@ -1313,6 +2904,24 @@
               "title": "Extraction Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "requestBody": {
@@ -1330,9 +2939,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Decide Extraction V1 Extractions  Extraction Id  Decision Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DecisionResult"
                 }
               }
             },
@@ -1364,9 +2971,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Health V1 Health Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Health"
                 }
               }
             },
@@ -1391,6 +2996,24 @@
               "title": "Job Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -1398,9 +3021,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Job V1 Jobs  Job Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/JobView"
                 }
               }
             },
@@ -1426,14 +3047,33 @@
     "/v1/schemas": {
       "get": {
         "operationId": "list_schemas_v1_schemas_get",
+        "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/SchemaView"
                   },
                   "title": "Response List Schemas V1 Schemas Get",
                   "type": "array"
@@ -1441,6 +3081,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Schemas",
@@ -1450,6 +3100,26 @@
       },
       "post": {
         "operationId": "create_schema_v1_schemas_post",
+        "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1465,9 +3135,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Schema V1 Schemas Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SchemaCreated"
                 }
               }
             },
@@ -1502,6 +3170,24 @@
               "title": "Schema Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -1509,9 +3195,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Schema V1 Schemas  Schema Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SchemaView"
                 }
               }
             },
@@ -1546,6 +3230,24 @@
               "title": "Schema Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "requestBody": {
@@ -1563,9 +3265,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Add Version V1 Schemas  Schema Id  Versions Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SchemaCreated"
                 }
               }
             },
@@ -1609,6 +3309,24 @@
             "schema": {
               "title": "Version",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
             }
           }
         ],
@@ -1664,6 +3382,24 @@
               "title": "Version",
               "type": "integer"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "requestBody": {
@@ -1681,9 +3417,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Test Run V1 Schemas  Schema Id  Versions  Version  Test Runs Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TestRun"
                 }
               }
             },
@@ -1709,14 +3443,33 @@
     "/v1/templates": {
       "get": {
         "operationId": "list_templates_v1_templates_get",
+        "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/Template"
                   },
                   "title": "Response List Templates V1 Templates Get",
                   "type": "array"
@@ -1724,6 +3477,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Templates",
@@ -1744,6 +3507,24 @@
               "title": "Run Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -1751,9 +3532,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Test Run V1 Test Runs  Run Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TestRun"
                 }
               }
             },
@@ -1796,6 +3575,24 @@
               ],
               "title": "Month"
             }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
           }
         ],
         "responses": {
@@ -1803,9 +3600,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Usage V1 Usage Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Usage"
                 }
               }
             },

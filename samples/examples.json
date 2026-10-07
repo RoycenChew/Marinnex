@@ -3,12 +3,12 @@
     "status": 200,
     "body": {
       "user": {
-        "id": "usr_1m4an4ehm7z5tgdn8",
+        "id": "usr_1m4bn1w9m2w5d322f",
         "email": "dev@fdip.local"
       },
       "projects": [
         {
-          "id": "prj_1m4an4eqt5fyz2b7k",
+          "id": "prj_1m4bn1wc03yxce5sz",
           "name": "Default"
         }
       ]
@@ -57,8 +57,8 @@
   "POST /v1/documents": {
     "status": 202,
     "body": {
-      "document_id": "doc_1m4an4f05hm4wn0vd",
-      "job_id": "job_1m4an4f07esh7as7y",
+      "document_id": "doc_1m4bn1wf908pk3e6p",
+      "job_id": "job_1m4bn1wfagd3vkrbg",
       "status": "processing",
       "reused": false
     }
@@ -66,7 +66,7 @@
   "GET /v1/documents/{id} (while processing)": {
     "status": 200,
     "body": {
-      "id": "doc_1m4an4f05hm4wn0vd",
+      "id": "doc_1m4bn1wf908pk3e6p",
       "filename": "invoice_digital.pdf",
       "mime": "application/pdf",
       "pages": 0,
@@ -76,21 +76,24 @@
       "document_type": null,
       "classification_confidence_source": null,
       "job": {
-        "id": "job_1m4an4f07esh7as7y",
+        "id": "job_1m4bn1wfagd3vkrbg",
+        "document_id": null,
         "state": "received",
         "stage": null,
         "attempts": 0,
-        "error_code": null
+        "error_code": null,
+        "created_at": null,
+        "finished_at": null
       },
       "decision": "processing",
-      "created_at": "2026-10-07T07:44:33",
+      "created_at": "2026-10-07T17:02:23",
       "page_image_dpi": 150
     }
   },
   "GET /v1/documents/{id}": {
     "status": 200,
     "body": {
-      "id": "doc_1m4an4f05hm4wn0vd",
+      "id": "doc_1m4bn1wf908pk3e6p",
       "filename": "invoice_digital.pdf",
       "mime": "application/pdf",
       "pages": 1,
@@ -108,14 +111,17 @@
         "source": "keyword"
       },
       "job": {
-        "id": "job_1m4an4f07esh7as7y",
+        "id": "job_1m4bn1wfagd3vkrbg",
+        "document_id": null,
         "state": "completed",
         "stage": "persist",
         "attempts": 1,
-        "error_code": null
+        "error_code": null,
+        "created_at": null,
+        "finished_at": null
       },
       "decision": "completed",
-      "created_at": "2026-10-07T07:44:33",
+      "created_at": "2026-10-07T17:02:23",
       "page_image_dpi": 150
     }
   },
@@ -124,12 +130,12 @@
     "body": {
       "items": [
         {
-          "id": "doc_1m4an4f05hm4wn0vd",
+          "id": "doc_1m4bn1wf908pk3e6p",
           "filename": "invoice_digital.pdf",
           "status": "completed",
           "document_type": "invoice",
           "pages": 1,
-          "created_at": "2026-10-07T07:44:33",
+          "created_at": "2026-10-07T17:02:23",
           "decision": "completed"
         }
       ],
@@ -139,8 +145,8 @@
   "GET /v1/documents/{id}/analysis": {
     "status": 200,
     "body": {
-      "extraction_id": "ext_1m4an4fg2cs5q59th",
-      "document_id": "doc_1m4an4f05hm4wn0vd",
+      "extraction_id": "ext_1m4bn1wmr4k4er54r",
+      "document_id": "doc_1m4bn1wf908pk3e6p",
       "version": 1,
       "status": "completed",
       "document_type": "invoice",
@@ -215,7 +221,7 @@
       "validation": [],
       "reasons": [],
       "pipeline_version": "2026.10.1",
-      "created_at": "2026-10-07T07:44:33",
+      "created_at": "2026-10-07T17:02:23",
       "suggested_fields": [
         "buyer_name",
         "currency",
@@ -251,21 +257,21 @@
   "GET /v1/jobs/{id}": {
     "status": 200,
     "body": {
-      "id": "job_1m4an4f07esh7as7y",
-      "document_id": "doc_1m4an4f05hm4wn0vd",
+      "id": "job_1m4bn1wfagd3vkrbg",
+      "document_id": "doc_1m4bn1wf908pk3e6p",
       "state": "completed",
       "stage": "persist",
       "attempts": 1,
       "error_code": null,
-      "created_at": "2026-10-07T07:44:33",
-      "finished_at": "2026-10-07T07:44:33.837068"
+      "created_at": "2026-10-07T17:02:23",
+      "finished_at": "2026-10-07T17:02:23.478388"
     }
   },
   "POST /v1/extractions/{id}/corrections": {
     "status": 201,
     "body": {
-      "extraction_id": "ext_1m4an4fnybz2cmfxz",
-      "document_id": "doc_1m4an4f05hm4wn0vd",
+      "extraction_id": "ext_1m4bn1wskn7t8nzwm",
+      "document_id": "doc_1m4bn1wf908pk3e6p",
       "version": 2,
       "status": "needs_review",
       "document_type": "invoice",
@@ -348,37 +354,38 @@
         "validation:line_sum_ne_subtotal"
       ],
       "pipeline_version": "2026.10.1",
-      "created_at": "2026-10-07T07:44:33",
+      "created_at": "2026-10-07T17:02:23",
+      "suggested_fields": null,
       "_fields_note": "39 entries in total; 2 shown"
     }
   },
   "POST /v1/extractions/{id}/decision": {
     "status": 200,
     "body": {
-      "extraction_id": "ext_1m4an4fnybz2cmfxz",
+      "extraction_id": "ext_1m4bn1wskn7t8nzwm",
       "status": "completed"
     }
   },
   "POST /v1/schemas": {
     "status": 201,
     "body": {
-      "schema_id": "sch_1m4an4fr241j5spk4",
+      "schema_id": "sch_1m4bn1wtecm6g1acs",
       "version": 1
     }
   },
   "GET /v1/schemas/{id}": {
     "status": 200,
     "body": {
-      "schema_id": "sch_1m4an4fr241j5spk4",
+      "schema_id": "sch_1m4bn1wtecm6g1acs",
       "name": "AP invoices",
       "document_type": "invoice",
       "template_id": "tpl_invoice_v1",
       "current_version": 1,
-      "created_at": "2026-10-07T07:44:34",
+      "created_at": "2026-10-07T17:02:23",
       "versions": [
         {
           "version": 1,
-          "created_at": "2026-10-07T07:44:34",
+          "created_at": "2026-10-07T17:02:23",
           "test_run_status": "none",
           "fields": [
             "invoice_number",
@@ -400,33 +407,33 @@
   "POST /v1/schemas/{id}/versions/{v}/test-runs": {
     "status": 202,
     "body": {
-      "test_run_id": "run_1m4an4ga6pmgbcqbx",
-      "schema_id": "sch_1m4an4fr241j5spk4",
+      "test_run_id": "run_1m4bn1wzhjdjj6nfg",
+      "schema_id": "sch_1m4bn1wtecm6g1acs",
       "version": 1,
       "status": "completed",
       "passed": true,
       "per_document": [
         {
-          "document_id": "doc_1m4an4f05hm4wn0vd",
+          "document_id": "doc_1m4bn1wf908pk3e6p",
           "status": "ok",
           "fields_ok": 6,
           "fields_total": 6
         },
         {
-          "document_id": "doc_1m4an4fsk2mx6b7sz",
+          "document_id": "doc_1m4bn1wtx0w77vm2g",
           "status": "ok",
           "fields_ok": 6,
           "fields_total": 6
         },
         {
-          "document_id": "doc_1m4an4ftc3bfmt3ek",
+          "document_id": "doc_1m4bn1wv5p49k2b5n",
           "status": "ok",
           "fields_ok": 6,
           "fields_total": 6
         }
       ],
-      "created_at": "2026-10-07T07:44:34",
-      "finished_at": "2026-10-07T07:44:34.630675"
+      "created_at": "2026-10-07T17:02:23",
+      "finished_at": "2026-10-07T17:02:23.729781"
     }
   },
   "GET /v1/schemas/{id}/versions/{v}/contract": {
@@ -454,8 +461,8 @@
   "POST /v1/api-keys": {
     "status": 201,
     "body": {
-      "id": "key_1m4an4gb2psf19avp",
-      "prefix": "fdip_test_GMDIEa8r",
+      "id": "key_1m4bn1wzv5k4dfxym",
+      "prefix": "fdip_test_4Q_7AybZ",
       "mode": "test",
       "key": "fdip_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  (the real key appears here once)",
       "detail": "store this key now; it is not retrievable"
@@ -465,27 +472,28 @@
     "status": 200,
     "body": [
       {
-        "id": "key_1m4an4gb2psf19avp",
+        "id": "key_1m4bn1wzv5k4dfxym",
         "name": "ui demo",
-        "prefix": "fdip_test_GMDIEa8r",
+        "prefix": "fdip_test_4Q_7AybZ",
         "mode": "test",
         "schema_versions": [
           {
-            "schema_id": "sch_1m4an4fr241j5spk4",
+            "schema_id": "sch_1m4bn1wtecm6g1acs",
             "version": 1
           }
         ],
         "expires_at": null,
         "revoked_at": null,
         "last_used_at": null,
-        "created_at": "2026-10-07T07:44:34"
+        "created_at": "2026-10-07T17:02:23",
+        "status": "active"
       }
     ]
   },
   "POST /v1/exports": {
     "status": 201,
     "body": {
-      "export_id": "exp_1m4an4gbwzct0nkna",
+      "export_id": "exp_1m4bn1x04b3cx1mjd",
       "status": "ready",
       "row_count": 1
     }
@@ -522,8 +530,8 @@
   "GET /v1/documents/{id}/analysis (a scan)": {
     "status": 200,
     "body": {
-      "extraction_id": "ext_1m4an4jpdk49jw2pg",
-      "document_id": "doc_1m4an4hj1kga3nck6",
+      "extraction_id": "ext_1m4bn1y0ktenncmtp",
+      "document_id": "doc_1m4bn1xf4smtwvz93",
       "version": 1,
       "status": "needs_review",
       "document_type": "invoice",
@@ -593,7 +601,7 @@
         "scanned_document_review"
       ],
       "pipeline_version": "2026.10.1",
-      "created_at": "2026-10-07T07:44:37",
+      "created_at": "2026-10-07T17:02:24",
       "suggested_fields": [
         "buyer_name",
         "currency",

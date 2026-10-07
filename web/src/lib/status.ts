@@ -158,6 +158,13 @@ export const FIELD_STATUS_META: Record<string, { label: string; tone: Tone }> = 
 export const SCAN_REVIEW_REASON = 'scanned_document_review'
 
 /**
+ * Carried as a *reason* on an interactive upload and as a *status* on a pipeline
+ * call. The screen has to look for both: an interactive upload still shows what
+ * was extracted, so it stays `needs_review` rather than returning nothing.
+ */
+export const TYPE_MISMATCH_REASON = 'document_type_mismatch'
+
+/**
  * Turn a machine reason into something a reviewer can act on.
  *
  * `field_not_grounded:total` is the common shape, so the field name is pulled
@@ -167,13 +174,22 @@ export function humaniseReason(reason: string): string {
   if (reason === SCAN_REVIEW_REASON) {
     return 'Scanned document — reviewed by a person before acceptance'
   }
+  if (reason === TYPE_MISMATCH_REASON) {
+    return 'This does not look like the document type this schema expects'
+  }
   const [code, detail] = reason.split(':')
   const field = detail ? detail.replace(/_/g, ' ') : ''
   switch (code) {
+    // Without a `:field` suffix these are *field-level* reasons, rendered under
+    // the field they belong to, so naming it again reads as `“” is required`.
     case 'field_not_grounded':
-      return `“${field}” was returned but could not be found on the page`
+      return field
+        ? `“${field}” was returned but could not be found on the page`
+        : 'Returned, but could not be found on the page'
     case 'required_field_missing':
-      return `“${field}” is required by this schema but was not found`
+      return field
+        ? `“${field}” is required by this schema but was not found`
+        : 'Required by this schema, but not found'
     case 'validation':
       return VALIDATION_LABELS[detail] ?? `Validation: ${(detail ?? '').replace(/_/g, ' ')}`
     case 'schema_invalid':

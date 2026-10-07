@@ -9,7 +9,9 @@ import { Button } from '../ui/Button'
 export type Box = {
   path: string
   page: number
-  bbox: [number, number, number, number]
+  /** `[x0, y0, x1, y1]` in PDF points. Typed as a list because that is what the
+   *  API declares; anything that is not four numbers is skipped when drawing. */
+  bbox: number[]
   match: string
 }
 
@@ -18,7 +20,9 @@ export function boxesOf(fields: Record<string, FieldEntry>): Box[] {
   const out: Box[] = []
   for (const [path, entry] of Object.entries(fields)) {
     for (const item of entry.evidence as Evidence[]) {
-      if (item.bbox) out.push({ path, page: item.page, bbox: item.bbox, match: entry.match })
+      if (item.bbox && item.bbox.length === 4) {
+        out.push({ path, page: item.page, bbox: item.bbox, match: entry.match })
+      }
     }
   }
   return out
@@ -51,7 +55,7 @@ export function PageViewer({
   documentId: string
   projectId: string | null
   pageCount: number
-  pageSizes: Record<string, [number, number]>
+  pageSizes: Record<string, number[]>
   boxes: Box[]
   selectedPath: string | null
   onSelectPath: (path: string) => void
@@ -209,7 +213,7 @@ export function PageViewer({
             />
             {scale > 0 &&
               pageBoxes.map((box, index) => {
-                const [x0, y0, x1, y1] = box.bbox
+                const [x0, y0, x1, y1] = box.bbox as [number, number, number, number]
                 const active = box.path === selectedPath
                 const colour = matchMeta(box.match).swatch
                 return (

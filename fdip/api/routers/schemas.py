@@ -22,6 +22,7 @@ from fdip.adapters.repository import GlobalRepository, ProjectRepository, now
 from fdip.adapters.seed import INVOICE_TEMPLATE_ID
 from fdip.api import problems, views
 from fdip.api.deps import Principal, db_connection, repository, session_principal
+from fdip.api.schemas import SchemaCreated, SchemaView, Template, TestRun
 from fdip.domain.schema_lang import (
     LocaleHints,
     SchemaSpec,
@@ -70,7 +71,7 @@ def _spec(name: str, document_type: str, fields: list[str],
         raise problems.invalid(str(error)) from error
 
 
-@router.get("/templates")
+@router.get("/templates", response_model=list[Template])
 def list_templates(
     _: Annotated[Principal, Depends(session_principal)],
     connection: Connection = Depends(db_connection),
@@ -78,7 +79,7 @@ def list_templates(
     return [views.template_view(row) for row in GlobalRepository(connection).templates()]
 
 
-@router.post("/schemas", status_code=201)
+@router.post("/schemas", status_code=201, response_model=SchemaCreated)
 def create_schema(
     payload: CreateSchema,
     principal: Annotated[Principal, Depends(session_principal)],
@@ -108,7 +109,7 @@ def create_schema(
     return {"schema_id": schema_id, "version": 1}
 
 
-@router.get("/schemas")
+@router.get("/schemas", response_model=list[SchemaView])
 def list_schemas(
     _: Annotated[Principal, Depends(session_principal)],
     repo: ProjectRepository = Depends(repository),
@@ -116,7 +117,7 @@ def list_schemas(
     return [views.schema_view(row) for row in repo.list_schemas()]
 
 
-@router.get("/schemas/{schema_id}")
+@router.get("/schemas/{schema_id}", response_model=SchemaView)
 def get_schema(
     schema_id: str,
     _: Annotated[Principal, Depends(session_principal)],
@@ -128,7 +129,11 @@ def get_schema(
     return views.schema_view(schema, repo.schema_versions(schema_id))
 
 
-@router.post("/schemas/{schema_id}/versions", status_code=201)
+@router.post(
+    "/schemas/{schema_id}/versions",
+    status_code=201,
+    response_model=SchemaCreated,
+)
 def add_version(
     schema_id: str,
     payload: NewVersion,
@@ -171,7 +176,11 @@ def get_contract(
     return dict(row["contract"] or {})
 
 
-@router.post("/schemas/{schema_id}/versions/{version}/test-runs", status_code=202)
+@router.post(
+    "/schemas/{schema_id}/versions/{version}/test-runs",
+    status_code=202,
+    response_model=TestRun,
+)
 def create_test_run(
     schema_id: str,
     version: int,
@@ -235,7 +244,7 @@ def create_test_run(
     return views.test_run_view(repo.test_run(run_id))  # type: ignore[arg-type]
 
 
-@router.get("/test-runs/{run_id}")
+@router.get("/test-runs/{run_id}", response_model=TestRun)
 def get_test_run(
     run_id: str,
     _: Annotated[Principal, Depends(session_principal)],

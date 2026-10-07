@@ -49,6 +49,16 @@ from fdip.domain.statuses import (
 from fdip.domain.templates import field_by_path
 from fdip.domain.validators import validate
 
+CLASSIFY_CONFIDENCE_FLOOR = 0.5
+"""Below this the classification is not trusted on its own (ASSUMED).
+
+The keyword rule reports 0.6 and the model reports around 0.95, so this separates
+"it had a reason" from "it was guessing". A document below the floor is still
+extracted and shown; it is just not auto-accepted.
+"""
+
+MISMATCH_REASON = "document_type_mismatch"
+
 CLASSIFY_PAGES = 2
 CLASSIFY_CHAR_LIMIT = 4000
 """First two pages only (3.3 stage 5). A classifier shown the whole document
@@ -336,14 +346,32 @@ def _jsonable(value: Any) -> bool:
 
 def validate_and_decide(extracted: Mapping[str, Any], spec: SchemaSpec,
                         document_text: str = "",
-                        allow_ocr_auto_accept: bool = False) -> dict[str, Any]:
-    """Stages 9 and 10. No model, no network, no randomness.
+                        allow_ocr_auto_accept: bool = False,
+                        classification: Mapping[str, Any] | None = None,
+                        expected_type: str | None = None) -> dict[str, Any]:
+    """Stages 6, 9 and 10. No model, no network, no randomness.
 
     Separate from `extract` so a correction can re-run exactly this part: a
     reviewer who fixes a total must get the arithmetic re-checked and the
-    decision re-made, without a second AI call.
+    decision re-made, without a second AI call. `classification` is therefore
+    optional: a correction has no classify step in front of it, and the field is
+    left exactly as the original run decided it.
     """
     data = dict(extracted.get("data") or {})
+    label = str((classification or {}).get("label") or "")
+
+    # `document_type` is **derived**, not grounded. No invoice prints the word
+    # "invoice" as a value -- the Malay sample says INVOIS CUKAI -- so grounding
+    # it against page text returned `not_found` and held every such document back
+    # over a field the classifier already knew. The classifier is the dedicated
+    # task for this, so its answer is the one stored, and the extractor's guess is
+    # overwritten rather than reconciled.
+    # Only when the schema selected it. `data` is validated against the published
+    # contract, whose `additionalProperties` is false, so writing a field the
+    # customer did not pin would break their integration.
+    selects_document_type = "document_type" in {f.path for f in spec.selected}
+    if label and selects_document_type:
+        data["document_type"] = label
     required = set(spec.required_paths())
     results = validate(data, sorted(required))
 
@@ -381,6 +409,36 @@ def validate_and_decide(extracted: Mapping[str, Any], spec: SchemaSpec,
         ))
         derived_matches[path] = match
 
+    if label and selects_document_type:
+        derived_matches["document_type"] = MatchClass.DERIVED.value
+        signals = [
+            FieldSignal(
+                path=signal.path,
+                present=True,
+                match=MatchClass.DERIVED.value,
+                required=signal.required,
+                min_ocr_confidence=None,
+                sources=(),
+            )
+            if signal.path == "document_type" else signal
+            for signal in signals
+        ]
+
+    # Stage 6, now on every route rather than only the pipeline. A document the
+    # classifier calls something else must never reach `completed` under this
+    # template; an interactive upload still shows what was extracted, so the
+    # mismatch is a reason on a `needs_review` rather than an empty result.
+    gate_reasons: list[str] = []
+    if label and expected_type and not type_gate(label, expected_type):
+        gate_reasons.append(MISMATCH_REASON)
+    elif label and expected_type:
+        confidence = float((classification or {}).get("confidence") or 0.0)
+        # `unknown` passes the pipeline gate -- a classifier that could not tell is
+        # not evidence of the wrong type -- but it is exactly the case a person
+        # should look at, and so is anything the classifier was unsure of.
+        if label == DocumentType.UNKNOWN.value or confidence < CLASSIFY_CONFIDENCE_FLOOR:
+            gate_reasons.append(MISMATCH_REASON)
+
     decision = decide(
         signals,
         validation=results,
@@ -388,11 +446,13 @@ def validate_and_decide(extracted: Mapping[str, Any], spec: SchemaSpec,
         truncated=bool(extracted.get("truncated", False)),
         warnings=[],
         allow_ocr_auto_accept=allow_ocr_auto_accept,
+        extra_reasons=gate_reasons,
         # The toolkit's own warnings are already reflected in `truncated`;
         # repeating them here would double-count one problem as two reasons.
     )
     return {
         "status": decision.status,
+        "data": data,
         "reasons": list(decision.reasons),
         "field_reasons": {k: list(v) for k, v in decision.field_reasons.items()},
         "rule_version": decision.rule_version,

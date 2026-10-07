@@ -63,12 +63,11 @@ config — there is no `tailwind.config.js`. Components reference semantic token
 which is why dark mode is a short override rather than a second set of classes. A
 one-off hex anywhere else is a bug.
 
-**`src/api/types.ts` and `queries.ts` are a workaround**, not the design. The
-backend's handlers return bare dicts, so every response generates as
-`{[key: string]: unknown}`, and `?project_id=` is accepted but undeclared. Those
-two files hold every cast so the screens above them are honestly typed. See
-`BACKEND_REQUESTS.md`; when the backend gains response models, run
-`npm run gen:api` and delete `types.ts`.
+**`src/api/types.ts` is now just naming.** It used to hand-write every response
+shape, because the handlers returned bare dicts and `?project_id=` was undeclared.
+Both are fixed in the backend, so the types are generated and `queries.ts` holds
+no casts — it is a typed façade, nothing more. Re-run `npm run gen:api` after any
+backend change.
 
 **Mock fixtures.** `src/mocks/fixtures.ts` fills three gaps in
 `../samples/examples.json`: the analysis and template responses were trimmed when

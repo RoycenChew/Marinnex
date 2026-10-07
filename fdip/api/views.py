@@ -13,6 +13,7 @@ the page image is rendered at 150 DPI. So the UI scales by
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.engine.row import RowMapping
@@ -170,9 +171,25 @@ def job_view(job: RowMapping) -> dict[str, Any]:
     }
 
 
+def api_key_status(row: RowMapping, now: datetime | None = None) -> str:
+    """`active`, `expired` or `revoked`.
+
+    Derived here rather than left to each client. Three timestamps and no state
+    meant every consumer re-implemented this comparison, and they would not all
+    have agreed on what "expires at exactly now" means.
+    """
+    if row["revoked_at"] is not None:
+        return "revoked"
+    expires = row["expires_at"]
+    if expires is not None and expires <= (now or datetime.now(UTC).replace(tzinfo=None)):
+        return "expired"
+    return "active"
+
+
 def api_key_view(row: RowMapping) -> dict[str, Any]:
     """Never the key, and never the hash. The prefix is what identifies it."""
     return {
+        "status": api_key_status(row),
         "id": str(row["id"]),
         "name": str(row["name"]),
         "prefix": str(row["prefix"]),

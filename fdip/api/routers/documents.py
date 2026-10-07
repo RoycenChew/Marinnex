@@ -34,6 +34,13 @@ from fdip.api.deps import (
     repository,
     session_principal,
 )
+from fdip.api.schemas import (
+    DocumentDetail,
+    DocumentList,
+    Extraction,
+    PendingAnalysis,
+    UploadAccepted,
+)
 from fdip.domain.statuses import ErrorCode, JobState, Status
 from fdip.pipeline.runner import run_id_for
 
@@ -44,7 +51,7 @@ def _fingerprint(digest: str, filename: str) -> str:
     return hashlib.sha256(("%s|%s" % (digest, filename)).encode("utf-8")).hexdigest()
 
 
-@router.post("/documents", status_code=202)
+@router.post("/documents", status_code=202, response_model=UploadAccepted)
 async def upload(
     request: Request,
     principal: Annotated[Principal, Depends(session_principal)],
@@ -123,7 +130,7 @@ async def upload(
             "status": Status.PROCESSING.value, "reused": False}
 
 
-@router.get("/documents")
+@router.get("/documents", response_model=DocumentList)
 def list_documents(
     _: Annotated[Principal, Depends(session_principal)],
     status: str | None = Query(default=None),
@@ -140,7 +147,7 @@ def list_documents(
     }
 
 
-@router.get("/documents/{document_id}")
+@router.get("/documents/{document_id}", response_model=DocumentDetail)
 def get_document(
     document_id: str,
     _: Annotated[Principal, Depends(session_principal)],
@@ -217,7 +224,12 @@ def original_file(
     )
 
 
-@router.get("/documents/{document_id}/analysis")
+@router.get(
+    "/documents/{document_id}/analysis",
+    # Either a finished extraction or the pending placeholder, which is
+    # why this is a union rather than one model.
+    response_model=Extraction | PendingAnalysis,
+)
 def analysis(
     document_id: str,
     _: Annotated[Principal, Depends(session_principal)],

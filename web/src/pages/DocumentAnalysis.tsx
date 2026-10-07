@@ -33,6 +33,7 @@ import { FieldRow, LineItemGrid, groupFields } from '../components/review/FieldP
 import { formatDateTime } from '../lib/format'
 import {
   SCAN_REVIEW_REASON,
+  TYPE_MISMATCH_REASON,
   humaniseReason,
   problemMessage,
   statusMeta,
@@ -191,6 +192,10 @@ export default function DocumentAnalysis() {
   const processing = extraction?.status === 'processing' || doc?.status === 'processing'
   const dirty = Object.keys(pending).length > 0
   const isScan = extraction?.reasons?.includes(SCAN_REVIEW_REASON)
+  // Status on a pipeline call, reason on an interactive upload.
+  const mismatch =
+    extraction?.status === 'document_type_mismatch' ||
+    !!extraction?.reasons?.includes(TYPE_MISMATCH_REASON)
 
   if (analysisQuery.isLoading || documentQuery.isLoading) {
     return <ReviewSkeleton />
@@ -268,15 +273,19 @@ export default function DocumentAnalysis() {
           body="This is routine for any scan, not a judgement about this file. OCR evidence is checked by hand until route B is measured."
         />
       )}
-      {extraction?.status === 'document_type_mismatch' && (
+      {mismatch && (
         <Banner
           tone="danger"
           icon={<AlertTriangle className="h-4 w-4" />}
-          title="This document is not the type the schema expects."
-          body="No data was extracted. Upload it against a schema for its own document type."
+          title={`This looks like a ${(doc?.document_type ?? 'different document').replace(/_/g, ' ')}, not what this schema expects.`}
+          body={
+            extraction?.status === 'document_type_mismatch'
+              ? 'No data was extracted. Send it to a schema for its own document type.'
+              : 'It was extracted anyway so you can see what was found, but it will not be accepted automatically.'
+          }
         />
       )}
-      {extraction?.status === 'needs_review' && !isScan && (
+      {extraction?.status === 'needs_review' && !isScan && !mismatch && (
         <Banner
           tone="warning"
           icon={<Info className="h-4 w-4" />}

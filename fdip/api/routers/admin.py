@@ -29,6 +29,14 @@ from fdip.api.deps import (
     repository,
     session_principal,
 )
+from fdip.api.schemas import (
+    ApiKeyCreated,
+    ApiKeyView,
+    ExportJob,
+    Health,
+    JobView,
+    Usage,
+)
 from fdip.domain.statuses import ErrorCode, Status
 
 router = APIRouter(tags=["admin"])
@@ -54,7 +62,7 @@ class CreateExport(BaseModel):
     status: str | None = None
 
 
-@router.post("/api-keys", status_code=201)
+@router.post("/api-keys", status_code=201, response_model=ApiKeyCreated)
 def create_api_key(
     payload: CreateKey,
     principal: Annotated[Principal, Depends(session_principal)],
@@ -91,7 +99,7 @@ def create_api_key(
             "detail": "store this key now; it is not retrievable"}
 
 
-@router.get("/api-keys")
+@router.get("/api-keys", response_model=list[ApiKeyView])
 def list_api_keys(
     _: Annotated[Principal, Depends(session_principal)],
     repo: ProjectRepository = Depends(repository),
@@ -112,7 +120,7 @@ def revoke_api_key(
     return Response(status_code=204)
 
 
-@router.post("/exports", status_code=201)
+@router.post("/exports", status_code=201, response_model=ExportJob)
 def create_export(
     payload: CreateExport,
     principal: Annotated[Principal, Depends(session_principal)],
@@ -205,7 +213,7 @@ def get_export(
     )
 
 
-@router.get("/usage")
+@router.get("/usage", response_model=Usage)
 def usage(
     _: Annotated[Principal, Depends(session_principal)],
     month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
@@ -215,7 +223,7 @@ def usage(
     return views.usage_view(key, repo.usage(key))
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", response_model=JobView)
 def get_job(
     job_id: str,
     _: Annotated[Principal, Depends(session_principal)],
@@ -227,7 +235,7 @@ def get_job(
     return views.job_view(row)
 
 
-@router.get("/health")
+@router.get("/health", response_model=Health)
 def health(state: AppState = Depends(get_state),
            connection: Any = Depends(db_connection)) -> dict[str, Any]:
     """Unauthenticated on purpose: a health check behind a login is not one.

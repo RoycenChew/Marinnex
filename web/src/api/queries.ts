@@ -1,50 +1,39 @@
-import { apiClient, API_ORIGIN } from './client'
+/**
+ * The API calls, in one place.
+ *
+ * This file used to exist for its casts: `?project_id=` was accepted by the
+ * backend but undeclared in `openapi.json`, and every response was typed
+ * `{[key: string]: unknown}` because the handlers returned bare dicts. Both are
+ * fixed — the parameter is declared on the session dependency and every route
+ * carries a response model — so what remains is a plain typed façade with no
+ * casts in it.
+ *
+ * Keeping the façade is deliberate: a screen should say `listDocuments(...)`
+ * rather than repeat a path, a params object and an error check each time.
+ */
+import { API_ORIGIN, apiClient } from './client'
 import type {
   ApiKey,
+  CreatedApiKey,
   DocumentDetail,
   DocumentList,
+  ExportJob,
   Extraction,
+  SchemaCreated,
   SchemaSummary,
   Template,
   TestRun,
   Usage,
 } from './types'
 
-/**
- * Typed wrappers over the generated client.
- *
- * Two gaps in `openapi.json` are absorbed here rather than at every call site,
- * and both are logged in `web/BACKEND_REQUESTS.md`:
- *
- * 1. **`?project_id=` is undeclared.** `API_CONTRACT_FOR_UI.md` says every UI
- *    route accepts it, and the backend reads it, but it is pulled off the raw
- *    request inside a FastAPI dependency so it never reaches the schema. The
- *    generated types therefore reject it.
- * 2. **Response bodies are `{[key: string]: unknown}`**, because the handlers
- *    return bare dicts with no response model.
- *
- * The casts below are the whole of the workaround. They are confined to this
- * file so that every screen above it is honestly typed, and so that deleting
- * them when the backend is annotated is a single change.
- */
-
-/** The undeclared-but-accepted query parameters, in one place. */
-type ExtraQuery = Record<string, string | number | undefined>
-
-function query(params: ExtraQuery) {
-  const clean: ExtraQuery = {}
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== '') clean[key] = value
-  }
-  // `as never` targets openapi-fetch's `query?: never` on routes that declare no
-  // parameters at all. See gap 1 above.
-  return clean as never
-}
-
-function unwrap<T>(data: unknown, error: unknown): T {
+/** Throw the RFC 9457 problem so TanStack Query surfaces it as an error. */
+function unwrap<T>(data: T | undefined, error: unknown): T {
   if (error) throw error
   return data as T
 }
+
+/** `null` means "the caller's first project", which the backend defaults to. */
+const project = (id: string | null) => id ?? undefined
 
 export async function listDocuments(options: {
   projectId: string | null
@@ -54,15 +43,15 @@ export async function listDocuments(options: {
 }): Promise<DocumentList> {
   const { data, error } = await apiClient.GET('/v1/documents', {
     params: {
-      query: query({
-        project_id: options.projectId ?? undefined,
+      query: {
+        project_id: project(options.projectId),
         status: options.status,
         limit: options.limit ?? 100,
         cursor: options.cursor,
-      }),
+      },
     },
   })
-  return unwrap<DocumentList>(data, error)
+  return unwrap(data, error)
 }
 
 export async function getDocument(
@@ -70,12 +59,9 @@ export async function getDocument(
   projectId: string | null,
 ): Promise<DocumentDetail> {
   const { data, error } = await apiClient.GET('/v1/documents/{document_id}', {
-    params: {
-      path: { document_id: id },
-      query: query({ project_id: projectId ?? undefined }),
-    },
+    params: { path: { document_id: id }, query: { project_id: project(projectId) } },
   })
-  return unwrap<DocumentDetail>(data, error)
+  return unwrap(data, error)
 }
 
 export async function deleteDocument(
@@ -83,10 +69,7 @@ export async function deleteDocument(
   projectId: string | null,
 ): Promise<void> {
   const { error } = await apiClient.DELETE('/v1/documents/{document_id}', {
-    params: {
-      path: { document_id: id },
-      query: query({ project_id: projectId ?? undefined }),
-    },
+    params: { path: { document_id: id }, query: { project_id: project(projectId) } },
   })
   if (error) throw error
 }
@@ -100,11 +83,13 @@ export async function getAnalysis(
     {
       params: {
         path: { document_id: id },
-        query: query({ project_id: projectId ?? undefined }),
+        query: { project_id: project(projectId) },
       },
     },
   )
-  return unwrap<Extraction>(data, error)
+  // The route returns either a finished extraction or the pending placeholder;
+  // callers branch on `status`, and the placeholder carries the same keys.
+  return unwrap(data, error) as Extraction
 }
 
 export async function listExtractions(
@@ -116,11 +101,11 @@ export async function listExtractions(
     {
       params: {
         path: { document_id: id },
-        query: query({ project_id: projectId ?? undefined }),
+        query: { project_id: project(projectId) },
       },
     },
   )
-  return unwrap<Extraction[]>(data, error)
+  return unwrap(data, error)
 }
 
 export async function correctExtraction(
@@ -134,12 +119,12 @@ export async function correctExtraction(
     {
       params: {
         path: { extraction_id: extractionId },
-        query: query({ project_id: projectId ?? undefined }),
+        query: { project_id: project(projectId) },
       },
       body: { changes, reason },
     },
   )
-  return unwrap<Extraction>(data, error)
+  return unwrap(data, error)
 }
 
 export async function decideExtraction(
@@ -147,32 +132,34 @@ export async function decideExtraction(
   action: 'approve' | 'reject',
   reason: string | undefined,
   projectId: string | null,
-): Promise<{ extraction_id: string; status: string }> {
+) {
   const { data, error } = await apiClient.POST(
     '/v1/extractions/{extraction_id}/decision',
     {
       params: {
         path: { extraction_id: extractionId },
-        query: query({ project_id: projectId ?? undefined }),
+        query: { project_id: project(projectId) },
       },
       body: { action, reason },
     },
   )
-  return unwrap<{ extraction_id: string; status: string }>(data, error)
+  return unwrap(data, error)
 }
 
 export async function listTemplates(projectId: string | null): Promise<Template[]> {
   const { data, error } = await apiClient.GET('/v1/templates', {
-    params: { query: query({ project_id: projectId ?? undefined }) },
+    params: { query: { project_id: project(projectId) } },
   })
-  return unwrap<Template[]>(data, error)
+  return unwrap(data, error)
 }
 
-export async function listSchemas(projectId: string | null): Promise<SchemaSummary[]> {
+export async function listSchemas(
+  projectId: string | null,
+): Promise<SchemaSummary[]> {
   const { data, error } = await apiClient.GET('/v1/schemas', {
-    params: { query: query({ project_id: projectId ?? undefined }) },
+    params: { query: { project_id: project(projectId) } },
   })
-  return unwrap<SchemaSummary[]>(data, error)
+  return unwrap(data, error)
 }
 
 export async function getSchema(
@@ -180,12 +167,9 @@ export async function getSchema(
   projectId: string | null,
 ): Promise<SchemaSummary> {
   const { data, error } = await apiClient.GET('/v1/schemas/{schema_id}', {
-    params: {
-      path: { schema_id: id },
-      query: query({ project_id: projectId ?? undefined }),
-    },
+    params: { path: { schema_id: id }, query: { project_id: project(projectId) } },
   })
-  return unwrap<SchemaSummary>(data, error)
+  return unwrap(data, error)
 }
 
 export async function createSchema(
@@ -196,27 +180,27 @@ export async function createSchema(
     locale_hints: { date_order: string }
   },
   projectId: string | null,
-): Promise<{ schema_id: string; version: number }> {
+): Promise<SchemaCreated> {
   const { data, error } = await apiClient.POST('/v1/schemas', {
-    params: { query: query({ project_id: projectId ?? undefined }) },
+    params: { query: { project_id: project(projectId) } },
     body,
   })
-  return unwrap<{ schema_id: string; version: number }>(data, error)
+  return unwrap(data, error)
 }
 
 export async function addSchemaVersion(
   schemaId: string,
   body: { fields: string[]; locale_hints: { date_order: string } },
   projectId: string | null,
-): Promise<{ schema_id: string; version: number }> {
+): Promise<SchemaCreated> {
   const { data, error } = await apiClient.POST('/v1/schemas/{schema_id}/versions', {
     params: {
       path: { schema_id: schemaId },
-      query: query({ project_id: projectId ?? undefined }),
+      query: { project_id: project(projectId) },
     },
     body,
   })
-  return unwrap<{ schema_id: string; version: number }>(data, error)
+  return unwrap(data, error)
 }
 
 export async function getContract(
@@ -229,11 +213,12 @@ export async function getContract(
     {
       params: {
         path: { schema_id: schemaId, version },
-        query: query({ project_id: projectId ?? undefined }),
+        query: { project_id: project(projectId) },
       },
     },
   )
-  return unwrap<Record<string, unknown>>(data, error)
+  // Genuinely free-form: this *is* a JSON Schema, so it has no fixed shape.
+  return unwrap(data, error)
 }
 
 export async function createTestRun(
@@ -247,12 +232,12 @@ export async function createTestRun(
     {
       params: {
         path: { schema_id: schemaId, version },
-        query: query({ project_id: projectId ?? undefined }),
+        query: { project_id: project(projectId) },
       },
       body: { document_ids: documentIds },
     },
   )
-  return unwrap<TestRun>(data, error)
+  return unwrap(data, error)
 }
 
 export async function getTestRun(
@@ -260,19 +245,16 @@ export async function getTestRun(
   projectId: string | null,
 ): Promise<TestRun> {
   const { data, error } = await apiClient.GET('/v1/test-runs/{run_id}', {
-    params: {
-      path: { run_id: runId },
-      query: query({ project_id: projectId ?? undefined }),
-    },
+    params: { path: { run_id: runId }, query: { project_id: project(projectId) } },
   })
-  return unwrap<TestRun>(data, error)
+  return unwrap(data, error)
 }
 
 export async function listApiKeys(projectId: string | null): Promise<ApiKey[]> {
   const { data, error } = await apiClient.GET('/v1/api-keys', {
-    params: { query: query({ project_id: projectId ?? undefined }) },
+    params: { query: { project_id: project(projectId) } },
   })
-  return unwrap<ApiKey[]>(data, error)
+  return unwrap(data, error)
 }
 
 export async function createApiKey(
@@ -283,12 +265,12 @@ export async function createApiKey(
     expires_at?: string | null
   },
   projectId: string | null,
-) {
+): Promise<CreatedApiKey> {
   const { data, error } = await apiClient.POST('/v1/api-keys', {
-    params: { query: query({ project_id: projectId ?? undefined }) },
+    params: { query: { project_id: project(projectId) } },
     body,
   })
-  return unwrap<import('./types').CreatedApiKey>(data, error)
+  return unwrap(data, error)
 }
 
 export async function revokeApiKey(
@@ -296,10 +278,7 @@ export async function revokeApiKey(
   projectId: string | null,
 ): Promise<void> {
   const { error } = await apiClient.DELETE('/v1/api-keys/{key_id}', {
-    params: {
-      path: { key_id: keyId },
-      query: query({ project_id: projectId ?? undefined }),
-    },
+    params: { path: { key_id: keyId }, query: { project_id: project(projectId) } },
   })
   if (error) throw error
 }
@@ -309,23 +288,23 @@ export async function getUsage(
   projectId: string | null,
 ): Promise<Usage> {
   const { data, error } = await apiClient.GET('/v1/usage', {
-    params: { query: query({ month, project_id: projectId ?? undefined }) },
+    params: { query: { month, project_id: project(projectId) } },
   })
-  return unwrap<Usage>(data, error)
+  return unwrap(data, error)
 }
 
 export async function createExport(
   body: { format: 'csv' | 'xlsx'; document_ids?: string[]; status?: string },
   projectId: string | null,
-) {
+): Promise<ExportJob> {
   const { data, error } = await apiClient.POST('/v1/exports', {
-    params: { query: query({ project_id: projectId ?? undefined }) },
+    params: { query: { project_id: project(projectId) } },
     body,
   })
-  return unwrap<import('./types').ExportJob>(data, error)
+  return unwrap(data, error)
 }
 
-/** The page image and export download are plain URLs, not JSON. */
+/** The page image and the export download are plain URLs, not JSON. */
 export function pageImageUrl(
   documentId: string,
   page: number,

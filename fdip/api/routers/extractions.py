@@ -26,6 +26,7 @@ from fdip.api.deps import (
     repository,
     session_principal,
 )
+from fdip.api.schemas import DecisionResult, Extraction
 from fdip.domain.decision import FieldSignal, decide
 from fdip.domain.money import normalise_currency
 from fdip.domain.schema_lang import LocaleHints, SchemaSpec
@@ -104,7 +105,7 @@ def _apply(data: dict[str, Any], path: str, value: Any) -> None:
     rows[index][column] = value
 
 
-@router.get("/extractions/{extraction_id}")
+@router.get("/extractions/{extraction_id}", response_model=Extraction)
 def get_extraction(
     extraction_id: str,
     _: Annotated[Principal, Depends(any_principal)],
@@ -116,7 +117,7 @@ def get_extraction(
     return views.extraction_view(repo, extraction)
 
 
-@router.get("/documents/{document_id}/extractions")
+@router.get("/documents/{document_id}/extractions", response_model=list[Extraction])
 def list_extractions(
     document_id: str,
     _: Annotated[Principal, Depends(session_principal)],
@@ -130,7 +131,11 @@ def list_extractions(
     ]
 
 
-@router.post("/extractions/{extraction_id}/corrections", status_code=201)
+@router.post(
+    "/extractions/{extraction_id}/corrections",
+    status_code=201,
+    response_model=Extraction,
+)
 def correct(
     extraction_id: str,
     payload: CorrectionRequest,
@@ -260,7 +265,7 @@ def correct(
     return views.extraction_view(repo, created)  # type: ignore[arg-type]
 
 
-@router.post("/extractions/{extraction_id}/decision")
+@router.post("/extractions/{extraction_id}/decision", response_model=DecisionResult)
 def decide_extraction(
     extraction_id: str,
     payload: DecisionRequest,

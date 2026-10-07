@@ -114,6 +114,7 @@ def decide(
     truncated: bool = False,
     warnings: Sequence[str] = (),
     allow_ocr_auto_accept: bool = False,
+    extra_reasons: Sequence[str] = (),
 ) -> Decision:
     reasons: list[str] = []
     field_reasons: dict[str, tuple[str, ...]] = {}
@@ -142,6 +143,9 @@ def decide(
         # page the value might be on, so "not found" means nothing here.
         reasons.append("document_truncated")
     reasons.extend("warning:" + w for w in warnings)
+    # Verbatim, not prefixed: these are codes the UI branches on, such as
+    # `document_type_mismatch`, and a prefix would make every consumer strip it.
+    reasons.extend(extra_reasons)
     reasons.extend(
         "validation:" + result.code for result in validation
         if result.severity in ("critical", "warning")

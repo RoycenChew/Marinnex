@@ -14,7 +14,7 @@ import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
-from fastapi import Depends, Request
+from fastapi import Depends, Query, Request
 from sqlalchemy import Engine
 from sqlalchemy.engine import Connection
 
@@ -135,12 +135,28 @@ def release_write_lock(connection: Connection) -> None:
     connection.commit()
 
 
+PROJECT_ID_QUERY = Query(
+    None,
+    description=(
+        "Which project to act in. Defaults to the caller's first project. A "
+        "project id that is not yours returns 404, not 403."
+    ),
+)
+
+
 def session_principal(
     request: Request,
+    project_id: str | None = PROJECT_ID_QUERY,
     state: AppState = Depends(get_state),
     connection: Connection = Depends(db_connection),
 ) -> Principal:
-    """The UI path: cookie, then `?project_id=`, defaulting to the first project."""
+    """The UI path: cookie, then `?project_id=`, defaulting to the first project.
+
+    `project_id` is a declared parameter rather than something read off the raw
+    request, so it appears in `openapi.json` for every route that depends on this
+    and the generated client will accept it. It used to be pulled from
+    `request.query_params`, which worked but was invisible to the schema.
+    """
     token = request.cookies.get(key_tools.SESSION_COOKIE)
     if not token:
         raise problems.unauthenticated("no session cookie; log in first")
@@ -156,7 +172,7 @@ def session_principal(
     if not owned:
         raise problems.forbidden("this account has no project")
 
-    requested = request.query_params.get("project_id")
+    requested = project_id
     if requested:
         match = next((p for p in owned if p["id"] == requested), None)
         if match is None:
@@ -245,7 +261,9 @@ def effective_provider_mode(settings: Settings, principal: Principal) -> str:
     return settings.provider_mode
 
 
-def any_principal(request: Request, state: AppState = Depends(get_state),
+def any_principal(request: Request,
+                  project_id: str | None = PROJECT_ID_QUERY,
+                  state: AppState = Depends(get_state),
                   connection: Connection = Depends(db_connection)) -> Principal:
     """For `GET /extractions/{id}`, which 3.7 allows either way.
 
@@ -253,8 +271,12 @@ def any_principal(request: Request, state: AppState = Depends(get_state),
     the same browser still authenticates as itself.
     """
     if request.headers.get("authorization"):
-        return key_principal(request, state, connection)
-    return session_principal(request, state, connection)
+        return key_principal(request, state=state, connection=connection)
+    # Keyword arguments: this is a direct call, not a FastAPI resolution, and the
+    # parameter order changed when project_id became a declared query parameter.
+    return session_principal(
+        request, project_id=project_id, state=state, connection=connection,
+    )
 
 
 __all__ = [
