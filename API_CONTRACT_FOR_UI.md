@@ -1,21 +1,19 @@
 # FDIP API contract for the UI
 
-Base URL `http://localhost:8000/v1`. Machine-readable: `openapi.json` in this folder,
-also served at `/v1/openapi.json`, with Swagger at `/v1/docs`. Every example below was
-**captured from a real mock-mode run**; the full set, including responses trimmed
-here, is in `samples/examples.json`.
+Base URL `http://localhost:8000/v1`. Machine-readable: `openapi.json` here, also served
+at `/v1/openapi.json`, with Swagger at `/v1/docs`. Every example below was **captured
+from a real mock-mode run**; the full set is in `samples/examples.json`.
 
-Three rules before anything else. **Branch on `code`, never on `detail`** — errors are
-RFC 9457 problem details and `detail` is prose that will be reworded. **Decimals are
-strings**: `"total": "2142.72"`, never `2142.72`, because a JSON number is a float on
-your side and `12611.70` does not survive it. And **`processing` is the only
-non-terminal status** — poll while it is `processing`, stop on anything else.
+Three rules first. **Branch on `code`, never on `detail`** — errors are RFC 9457
+problem details and `detail` is prose that will be reworded. **Decimals are strings**:
+`"total": "2142.72"`, never `2142.72`, because a JSON number is a float on your side.
+And **`processing` is the only non-terminal status** — poll while it is `processing`.
 
 ## Auth
 
 Session cookie `fdip_session`, httpOnly, `SameSite=Lax`, set by login. Send
-`credentials: "include"` on every request. CORS allows `http://localhost:5173` only;
-change `FDIP_CORS_ORIGINS` to add an origin.
+`credentials: "include"` on every request. CORS allows only the origins in
+`FDIP_CORS_ORIGINS`, which defaults to `http://localhost:5173`.
 
 | Route | Body | Notes |
 | --- | --- | --- |
@@ -24,34 +22,32 @@ change `FDIP_CORS_ORIGINS` to add an origin.
 | `POST /auth/logout` | — | `204`; clears the cookie |
 | `GET /auth/me` | — | `{"user": {"id", "email"}, "projects": [{"id", "name"}]}` |
 
-Every UI route accepts `?project_id=`; it defaults to the first project. A project
-id that is not yours returns **404**, not 403 — that is deliberate, and so is a
-cross-project document returning 404. Dev login: `dev@fdip.local` / `devpass`.
+Every UI route accepts `?project_id=`, defaulting to the first. A project id that is
+not yours returns **404**, not 403 — deliberate, and so is a cross-project document
+returning 404. Dev login: `dev@fdip.local` / `devpass`.
 
 ## Upload and poll
 
-`POST /documents`, multipart `file=<pdf|png|jpg|tiff>`, optional header
-`Idempotency-Key` → `202` `{"document_id": "doc_1m4ab…", "job_id": "job_1m4ab…",
-"status": "processing", "reused": false}`.
+`POST /documents`, multipart `file=<pdf|png|jpg|tiff>`, optional header `Idempotency-Key`
+→ `202` `{"document_id", "job_id", "status": "processing", "reused": false}`.
 
-`reused: true` means those bytes were already in this project; no second extraction
-is charged. Same `Idempotency-Key` with a **different** file is
+`reused: true` means those bytes were already in this project, so no second
+extraction is charged; the same `Idempotency-Key` with a **different** file is
 `409 idempotency_conflict`. Then poll `GET /documents/{id}` **every 2 s** while
-`status` is `processing`, and stop on any other value. There is no webhook.
+`status` is `processing`, stopping on any other value — there is no webhook.
 
 ```json
 // GET /v1/documents/{id}  ->  200
 {"id": "doc_1m4ab…", "filename": "invoice_digital.pdf", "mime": "application/pdf",
  "pages": 1, "page_sizes": {"1": [595.0, 842.0]}, "status": "completed",
- "error_code": null, "document_type": "invoice",
+ "error_code": null, "document_type": "invoice", "decision": "completed",
  "classification_confidence_source": {"confidence": 0.6, "source": "keyword"},
  "job": {"id": "job_1m4ab…", "state": "completed", "stage": "persist",
-         "attempts": 1, "error_code": null},
- "decision": "completed", "created_at": "2026-10-07T04:49:51", "page_image_dpi": 150}
+         "attempts": 1, "error_code": null}, "page_image_dpi": 150}
 ```
 
-`GET /documents?status=&limit=&cursor=` lists them: `{items, next_cursor}`. Pass
-`next_cursor` back as `cursor`; `null` means the end.
+`GET /documents?status=&limit=&cursor=` lists them as `{items, next_cursor}`; pass
+`next_cursor` back as `cursor`, and `null` means the end.
 
 ## Statuses
 
@@ -67,17 +63,16 @@ is charged. Same `Idempotency-Key` with a **different** file is
 
 ## The extraction
 
-`GET /documents/{id}/analysis` is the full-template run behind an interactive
-upload; `GET /extractions/{id}` is the same shape. While the job is still running,
-`analysis` returns `200` with `status: "processing"` and empty `data` — not a 404.
+`GET /documents/{id}/analysis` is the full-template run behind an interactive upload,
+and `GET /extractions/{id}` is the same shape. While the job runs it returns `200`
+with `status: "processing"` and empty `data` — not a 404.
 
 ```json
 {"extraction_id": "ext_1m4ab…", "document_id": "doc_1m4ab…", "version": 1,
  "status": "completed", "document_type": "invoice",
  "schema": {"id": "invoice", "version": 1}, "currency": "MYR",
  "data": {"invoice_number": "INV-2026-0417", "invoice_date": "2026-03-17",
-          "subtotal": "1984.00", "tax_rate": "8", "tax_amount": "158.72",
-          "total": "2142.72",
+          "subtotal": "1984.00", "tax_amount": "158.72", "total": "2142.72",
           "line_items": [{"description": "Hex bolt stainless M8 HBS-1000",
                           "quantity": "40", "unit_price": "12.50", "amount": "500.00"}]},
  "fields": {
@@ -88,8 +83,7 @@ upload; `GET /extractions/{id}` is the same shape. While the job is still runnin
    "line_items[0].amount": {"value": "500.00", "status": "accepted",
      "match": "exact", "evidence": [], "reasons": []}},
  "validation": [], "reasons": [], "pipeline_version": "2026.10.1",
- "created_at": "2026-10-07T04:49:51",
- "suggested_fields": ["currency", "invoice_date", "invoice_number", "..."]}
+ "suggested_fields": ["currency", "invoice_date", "..."], "created_at": "2026-10-07T04:49:51"}
 ```
 
 - `fields` is keyed by **path**. Line-item cells are `line_items[i].<column>`, `i`
@@ -97,25 +91,33 @@ upload; `GET /extractions/{id}` is the same shape. While the job is still runnin
 - `match`: `exact` · `normalized` · `fuzzy_ocr` · `derived` · `not_found` ·
   `not_checked`. `exact`, `normalized` and `derived` are accepted; the rest go to
   review. `fuzzy_ocr` means "possible OCR misread" — show it differently.
-- `derived` means the value is not printed but deterministic code confirmed it: an
-  ISO currency code is rarely printed, and a total can be confirmed by arithmetic.
-  Trustworthy, but say so in the UI.
+- `derived` means the value is not printed but deterministic code confirmed it from
+  evidence on the page: a currency by its `RM`/`MYR`/`S$` marker, a total by
+  arithmetic, a tax amount by its rate — those three fields only. Trustworthy, but
+  worth saying so in the UI.
 - `status` per field: `accepted` · `needs_review` · `missing` · `corrected`.
-- `validation[].severity` is `info` · `warning` · `critical`. Show criticals first;
+- `validation[].severity` is `info` · `warning` · `critical`; show criticals first, and
   `subtotal_plus_tax_ne_total` is the one users care about.
-- `suggested_fields` (analysis only) are the grounded paths — pre-tick these when
-  the user turns a document into a schema.
+- `suggested_fields` (analysis only) are the grounded paths — pre-tick these when the
+  user turns a document into a schema.
+
+Two common `reasons`, neither meaning the extraction is wrong.
+`scanned_document_review`: say "scanned documents are checked by a person" — a scan is
+**never** auto-completed yet, because route B measured 13 silent errors in 30 mild
+scans, however clean the page looks. `field_not_grounded:<path>`: that value was not
+found on the page, so highlight the field and show no box, because there is none. It
+appears for **optional** fields too — an optional field tolerates being absent, not
+being wrong — while a *null* optional field completes.
 
 ## Boxes and page images
 
 `GET /documents/{id}/pages/{n}/image` returns a **PNG at 150 DPI**, cacheable for a
 day, with `X-Page-Dpi: 150`. `GET /documents/{id}/file` returns the original bytes.
 
-- `bbox` is `[x0, y0, x1, y1]` in **PDF points**, origin **top-left**, y increasing
-  **downwards** — the same direction as CSS.
-- Scale by `image_width / page_width`, where `page_width` is `page_sizes["<n>"][0]`.
-  At 150 DPI that is `150 / 72 ≈ 2.0833`.
-- So `left = x0 * scale`, `top = y0 * scale`, `width = (x1 - x0) * scale`.
+- `bbox` is `[x0, y0, x1, y1]` in **PDF points**, origin **top-left**, y **down** —
+  the same direction as CSS.
+- Scale by `image_width / page_width` (`page_sizes["<n>"][0]`), which at 150 DPI is
+  `150 / 72 ≈ 2.0833`: `left = x0 * scale`, `width = (x1 - x0) * scale`.
 
 ## Review
 
@@ -124,10 +126,9 @@ day, with `X-Page-Dpi: 150`. `GET /documents/{id}/file` returns the original byt
 misread"}` returns `201` and
 `{"extraction_id": "ext_…new…", "version": 2, "status": "completed", …}`.
 
-A correction **creates a new version** and re-runs validation and the decision;
-the previous version is immutable and still readable. It costs no AI call. Use the
-returned `extraction_id` from then on. `GET /documents/{id}/extractions` lists every
-version.
+A correction **creates a new version** and re-runs validation and the decision; the
+previous version is immutable and still readable, and it costs no AI call. Use the
+returned `extraction_id` from then on; `GET /documents/{id}/extractions` lists all.
 
 `POST /extractions/{id}/decision` takes `{"action": "approve"}` or
 `{"action": "reject", "reason": "duplicate"}` and returns
@@ -152,8 +153,8 @@ extraction cannot be corrected (`409 already_decided`).
 | `GET /jobs/{id}` · `GET /health` | job state; DB, worker heartbeat, provider mode (`/health` needs no auth) |
 
 The `key` in the `POST /api-keys` response is shown **once** and is not retrievable:
-warn the user before they close the dialog. Afterwards only `prefix` is available.
-Test runs reuse the existing analysis, so they are free and repeatable, but every
+warn the user before they close the dialog; afterwards only `prefix` is available.
+Test runs reuse the existing analysis, so they are free and repeatable, but each
 document must already have been processed.
 
 ## Errors the UI must handle
@@ -175,19 +176,18 @@ document must already have been processed.
 | `schema_test_run_required` | 409 | run a test run before using the version |
 | `export_not_ready` | 409 | poll `GET /exports/{id}` |
 | `file_too_large` | 413 | over 20 MB |
-| `empty_file` · `corrupt_file` · `encrypted_pdf` · `unsupported_file_type` · `page_limit_exceeded` | 415 | the file is refused permanently; do not retry |
+| `empty_file` · `corrupt_file` · `encrypted_pdf` · `unsupported_file_type` · `page_limit_exceeded` | 415 | refused permanently; do not retry |
 | `invalid_request` | 422 | bad field path, bad `date_order`, missing reason |
 | `rate_limited` | 429 | 60/min per key; honour `Retry-After` |
 | `quota_exceeded` | 429 | monthly page quota or AI ceiling reached |
 | `provider_unavailable` · `internal` | 500 | retryable |
 
-FastAPI's own validation failures come back as `422` with a `detail` **array** rather
-than this shape; treat an array `detail` as a form error.
+FastAPI's own validation failures come back as `422` with a `detail` **array**, not this shape: treat an array `detail` as a form error.
 
 ## Pipeline route (not for the UI)
 
-`POST /extract` takes `Authorization: Bearer fdip_live_…`, not a cookie. The UI only
-needs it to show customers a cURL example:
+`POST /extract` takes `Authorization: Bearer fdip_live_…`, not a cookie. The UI needs
+it only to show customers a cURL example:
 
 ```bash
 curl -X POST "http://localhost:8000/v1/extract?wait=30" \
@@ -196,4 +196,4 @@ curl -X POST "http://localhost:8000/v1/extract?wait=30" \
 ```
 
 `202` with `{document_id, job_id, status}`, or `200` with the full extraction if it
-finished inside `wait` seconds. A `fdip_test_` key can never reach the live provider.
+finished inside `wait`. A `fdip_test_` key can never reach the live provider.

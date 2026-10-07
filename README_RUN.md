@@ -183,12 +183,35 @@ against real priced usage: without a price book the governor refuses to pretend 
 limit is binding, so a misconfiguration fails loudly rather than silently
 uncapped.
 
-`FDIP_EXTRACT_THINKING` controls DeepSeek's reasoning: `repair` (the default,
-plain first attempt and reasoning only on a repair), `off` (cheapest and fastest,
-but measured 1.7 points worse on field accuracy) or `on`.
+DeepSeek's reasoning is set **per route**, because the two routes were measured
+differently:
+
+| Variable | Default | Why |
+| --- | --- | --- |
+| `FDIP_EXTRACT_THINKING_DIGITAL` | `on` | the only setting with a 420-document result behind it |
+| `FDIP_EXTRACT_THINKING_SCAN` | `repair` | plain first attempt, reasoning on a repair |
+| `FDIP_EXTRACT_THINKING` | unset | overrides both when set |
+
+Each takes `on`, `off` or `repair`. `off` is cheapest and fastest and measured 1.7
+points worse on field accuracy, which is why it is not a default anywhere.
 
 A `fdip_test_` API key is forced onto a non-live provider whatever this is set to.
 That is the point of having two key schemes.
+
+## 9a. Scanned documents are held for review
+
+`FDIP_SCAN_AUTO_ACCEPT=false` is the default, and it means **a document whose
+evidence came from OCR never reaches `completed` automatically**: it gets
+`needs_review` with the reason `scanned_document_review`.
+
+This is not a bug and not a quality judgement about any one document. The Phase 1
+slice measured **13 silent errors in 30 mild scans**, against 0 in 30 digital
+ones. The suspected mechanism is that an OCR misread is grounded against the same
+misread words, so grounding agrees with itself and the error leaves no trace —
+exactly the failure grounding is supposed to catch.
+
+Set it to `true` only after `run_benchmark.py --final` has measured route B. A
+digital PDF with a text layer is unaffected.
 
 ## 10. Docker
 
@@ -204,6 +227,7 @@ docker compose up --build
 
 | Symptom | Cause |
 | --- | --- |
+| Every scan comes back `needs_review` | expected: `FDIP_SCAN_AUTO_ACCEPT` is false by default (see below) |
 | Uploads stay `processing` | the worker is not running |
 | `database is locked` | two writers; SQLite allows one. Check for a second worker |
 | `tesseract` errors on a PNG | the binary is not on `PATH` |

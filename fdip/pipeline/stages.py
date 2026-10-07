@@ -335,7 +335,8 @@ def _jsonable(value: Any) -> bool:
 
 
 def validate_and_decide(extracted: Mapping[str, Any], spec: SchemaSpec,
-                        document_text: str = "") -> dict[str, Any]:
+                        document_text: str = "",
+                        allow_ocr_auto_accept: bool = False) -> dict[str, Any]:
     """Stages 9 and 10. No model, no network, no randomness.
 
     Separate from `extract` so a correction can re-run exactly this part: a
@@ -372,6 +373,11 @@ def validate_and_decide(extracted: Mapping[str, Any], spec: SchemaSpec,
             match=match,
             required=path in required,
             min_ocr_confidence=min(confidences) if confidences else None,
+            sources=tuple(sorted({
+                str(item.get("source", "")) for item in (entry or {}).get(
+                    "evidence", []
+                ) if item.get("source")
+            })),
         ))
         derived_matches[path] = match
 
@@ -381,6 +387,7 @@ def validate_and_decide(extracted: Mapping[str, Any], spec: SchemaSpec,
         schema_valid=bool(extracted.get("schema_valid", True)),
         truncated=bool(extracted.get("truncated", False)),
         warnings=[],
+        allow_ocr_auto_accept=allow_ocr_auto_accept,
         # The toolkit's own warnings are already reflected in `truncated`;
         # repeating them here would double-count one problem as two reasons.
     )

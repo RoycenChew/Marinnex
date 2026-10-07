@@ -59,8 +59,27 @@ class ThinkingSwitch:
         self._attempt = 0
 
     @property
+    def mode(self) -> str:
+        return self._mode
+
+    def set_mode(self, mode: str) -> None:
+        """Change the setting for the next document.
+
+        Needed because the choice is per route and the route is not known until
+        the probe stage has run: a text layer gets reasoning on, a scan gets it
+        only on a repair.
+        """
+        if mode not in ("on", "off", "repair"):
+            raise ValueError("thinking mode must be on, off or repair")
+        self._mode = mode
+
+    @property
     def model_version(self) -> str:
-        """Distinct per mode, so two settings cannot share cache entries."""
+        """Distinct per mode, so two settings cannot share cache entries.
+
+        The TK-5 defect in another guise: two configurations differing only in a
+        request parameter must not replay each other's answers.
+        """
         base = str(getattr(self._llm, "model_version", "") or "llm")
         return "%s:thinking=%s" % (base, self._mode)
 
@@ -96,6 +115,16 @@ class ModelStack:
         start = getattr(self.llm, "start_document", None)
         if callable(start):
             start()
+
+    def set_thinking(self, mode: str) -> None:
+        """Apply the route's thinking setting before this document's calls."""
+        setter = getattr(self.llm, "set_mode", None)
+        if callable(setter):
+            setter(mode)
+
+    @property
+    def thinking(self) -> str:
+        return str(getattr(self.llm, "mode", "") or "")
 
     @property
     def spent_usd(self) -> float:
@@ -193,7 +222,9 @@ def build_model_stack(
             max_requests_per_minute=None,
         ),
     )
-    switched = ThinkingSwitch(governed, client, settings.extract_thinking)
+    # Seeded with the digital setting; `set_thinking` narrows it once the probe
+    # stage knows the route.
+    switched = ThinkingSwitch(governed, client, settings.extract_thinking_digital)
     return ModelStack(
         llm=switched, cache=cache, client=client, mode=mode,
         provider_name=provider_name, model=settings.model,

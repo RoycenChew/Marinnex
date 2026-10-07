@@ -79,6 +79,17 @@ def run_id_for(document_hash: str, purpose: str,
     return ":".join(parts)
 
 
+def _apply_thinking(context: JobContext, ctx: Mapping[str, Any]) -> None:
+    """Set the reasoning mode from the route the probe stage chose.
+
+    Per route because the two were measured differently: route A has a
+    420-document result behind reasoning on, and option (c) was never actually
+    measured at all. See PHASE1_DECISION.md.
+    """
+    route = str((ctx.get("probe") or {}).get("route") or "A")
+    context.models.set_thinking(context.settings.thinking_for_route(route))
+
+
 class _Injected(RuntimeError):
     """The simulated crash. Not a NonRetryableError, so the job stays resumable."""
 
@@ -104,6 +115,7 @@ def build_steps(context: JobContext) -> list[Step]:
 
     def classify(ctx: Mapping[str, Any]) -> dict[str, Any]:
         document = stages.rebuild_document(ctx["parse"])
+        _apply_thinking(context, ctx)
         context.models.start_document()
         return stages.classify(document, context.models.llm, context.models.mode)
 
@@ -122,6 +134,7 @@ def build_steps(context: JobContext) -> list[Step]:
                 str(ctx["gate"]["label"]), context.expected_type
             )
         document = stages.rebuild_document(ctx["parse"])
+        _apply_thinking(context, ctx)
         context.models.start_document()
         return stages.extract(
             document, context.spec, context.models.llm,
@@ -139,7 +152,9 @@ def build_steps(context: JobContext) -> list[Step]:
         # The document text is needed for the currency derivation, which has
         # to see whether a different currency's symbol is on the page.
         return stages.validate_and_decide(
-            extracted, context.spec, document_text=str(ctx['parse'].get('text', ''))
+            extracted, context.spec,
+            document_text=str(ctx["parse"].get("text", "")),
+            allow_ocr_auto_accept=context.settings.scan_auto_accept,
         )
 
     def persist(ctx: Mapping[str, Any]) -> dict[str, Any]:

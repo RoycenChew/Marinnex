@@ -189,3 +189,127 @@ def test_a_seeded_arithmetic_error_routes_to_review_and_is_not_accepted(
     codes = {row["code"] for row in body["validation"]}
     assert "subtotal_plus_tax_ne_total" in codes
     assert any(r.startswith("validation:") for r in body["reasons"])
+
+
+def test_a_hallucinated_optional_value_routes_to_review(
+    client: Any, pdf: Any, settings: Any
+) -> None:
+    """A value not on the page holds the document back, required or not.
+
+    The model is scripted to return a `po_number` that the document does not
+    contain. Every other field is correct, so without this rule the document would
+    be `completed` carrying one invented value -- which is precisely a silent
+    error, and the metric Phase 1 exists to measure.
+    """
+    import json
+
+    from fdip.adapters.mock_answers import SAMPLE_ANSWERS
+    from fdip.worker import drain
+
+    answer = dict(SAMPLE_ANSWERS["INV-2026-0417"])
+    answer["po_number"] = "PO-99999-NOT-ON-THIS-PAGE"
+
+    def handler(messages: Any) -> str:
+        text = "\n".join(str(getattr(m, "content", "")) for m in messages)
+        if "classify this document" in text.lower():
+            return json.dumps({"document_type": "invoice", "confidence": 0.95})
+        return json.dumps(answer)
+
+    path = pdf("invoice_digital")
+    with path.open("rb") as handle:
+        response = client.post(
+            "/v1/documents",
+            files={"file": (path.name, handle, "application/pdf")},
+        )
+    document_id = response.json()["document_id"]
+
+    import fdip.worker as worker_module
+    from fdip.adapters import providers
+
+    original = providers.build_model_stack
+
+    def patched(*args: Any, **kwargs: Any) -> Any:
+        kwargs["handler"] = handler
+        return original(*args, **kwargs)
+
+    providers.build_model_stack = patched
+    worker_module.build_model_stack = patched
+    try:
+        drain(client.app.state.fdip.engine, settings)
+    finally:
+        providers.build_model_stack = original
+        worker_module.build_model_stack = original
+
+    body = client.get("/v1/documents/%s/analysis" % document_id).json()
+    assert body["data"]["po_number"] == "PO-99999-NOT-ON-THIS-PAGE"
+    assert body["fields"]["po_number"]["match"] == "not_found"
+    assert body["fields"]["po_number"]["status"] == "needs_review"
+    assert body["fields"]["po_number"]["reasons"] == ["value_not_found_on_page"]
+    assert body["status"] == "needs_review", body["reasons"]
+    assert "field_not_grounded:po_number" in body["reasons"]
+    # The honest grounded fields are still accepted, so a reviewer sees one
+    # problem rather than a wall of them.
+    assert body["fields"]["invoice_number"]["status"] == "accepted"
+
+
+def test_a_document_with_no_printed_currency_routes_to_review(
+    client: Any, pdf: Any, settings: Any, tmp_path: Any
+) -> None:
+    """Currency may only be derived from a marker on the page.
+
+    The MYR default is gone: a document priced in another currency whose symbol
+    OCR dropped would have been accepted as Ringgit, silently.
+    """
+    import json
+    import sys
+
+    sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+    from fixtures import BY_NAME, Variant, write_pdf
+
+    from fdip.adapters.mock_answers import SAMPLE_ANSWERS
+    from fdip.worker import drain
+
+    # The same invoice with every RM stripped: nothing currency-like is printed.
+    original_variant = BY_NAME["invoice_digital"]
+    bare = Variant(
+        name="bare",
+        lines=tuple(line.replace("RM", "") for line in original_variant.lines),
+        data=original_variant.data,
+    )
+    path = write_pdf(tmp_path / "bare.pdf", bare)
+    assert "RM" not in "\n".join(bare.lines)
+
+    def handler(messages: Any) -> str:
+        text = "\n".join(str(getattr(m, "content", "")) for m in messages)
+        if "classify this document" in text.lower():
+            return json.dumps({"document_type": "invoice", "confidence": 0.95})
+        return json.dumps(SAMPLE_ANSWERS["INV-2026-0417"])
+
+    with path.open("rb") as handle:
+        response = client.post(
+            "/v1/documents",
+            files={"file": ("bare.pdf", handle, "application/pdf")},
+        )
+    document_id = response.json()["document_id"]
+
+    import fdip.worker as worker_module
+    from fdip.adapters import providers
+
+    original = providers.build_model_stack
+
+    def patched(*args: Any, **kwargs: Any) -> Any:
+        kwargs["handler"] = handler
+        return original(*args, **kwargs)
+
+    providers.build_model_stack = patched
+    worker_module.build_model_stack = patched
+    try:
+        drain(client.app.state.fdip.engine, settings)
+    finally:
+        providers.build_model_stack = original
+        worker_module.build_model_stack = original
+
+    body = client.get("/v1/documents/%s/analysis" % document_id).json()
+    assert body["fields"]["currency"]["match"] == "not_found"
+    assert body["status"] == "needs_review", body["reasons"]
+    assert "field_not_grounded:currency" in body["reasons"]

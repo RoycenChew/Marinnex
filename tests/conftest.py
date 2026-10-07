@@ -40,7 +40,13 @@ def _isolated_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[N
     monkeypatch.setenv("FDIP_PROVIDER_MODE", "mock")
     monkeypatch.setenv("FDIP_KEY_PEPPER", "test-pepper-0123456789abcdef")
     monkeypatch.setenv("FDIP_SESSION_SECRET", "test-secret-0123456789abcdef")
-    monkeypatch.setenv("FDIP_EXTRACT_THINKING", "repair")
+    # Deliberately not set: the per-route defaults (on for a text layer,
+    # repair for a scan) are what production uses, so that is what the tests
+    # should see. FDIP_EXTRACT_THINKING would override both.
+    monkeypatch.delenv("FDIP_EXTRACT_THINKING", raising=False)
+    monkeypatch.delenv("FDIP_EXTRACT_THINKING_DIGITAL", raising=False)
+    monkeypatch.delenv("FDIP_EXTRACT_THINKING_SCAN", raising=False)
+    monkeypatch.delenv("FDIP_SCAN_AUTO_ACCEPT", raising=False)
     monkeypatch.setenv("FDIP_DEV_SEED", "1")
     monkeypatch.setenv("FDIP_SANDBOX", "0")
     monkeypatch.setenv("FDIP_CORS_ORIGINS", "http://localhost:5173")

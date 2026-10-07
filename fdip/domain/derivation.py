@@ -13,49 +13,88 @@ returns False, and the field goes to review.
 """
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any
 
 from fdip.domain.money import (
     CURRENCY_SYNONYMS,
-    DEFAULT_CURRENCY,
     close_enough,
     quantise,
     to_decimal,
 )
 
 DERIVABLE_PATHS: frozenset[str] = frozenset({"currency", "total", "tax_amount"})
-"""The only fields a derivation may rescue. Deliberately short: every addition
-is a field that can be accepted without appearing on the page."""
+"""The only three fields a derivation may rescue, and what justifies each:
+
+* **`currency`** -- a marker for that same currency is printed on the page (`RM`,
+  `MYR`, `S$`, `EUR`). Never a locale default; see `_currency_is_derivable`.
+* **`total`** -- equals subtotal + tax (+ rounding) within two sen, in magnitudes
+  so a credit note balances.
+* **`tax_amount`** -- equals the stated rate applied to the subtotal.
+
+Deliberately short. Every addition is a field that can be accepted without
+appearing on the page, and the template must also mark it `grounding="derivable"`
+for any of this to apply.
+"""
+
+
+def _marker_pattern() -> re.Pattern[str]:
+    """Currency markers, matched on a letter boundary rather than as substrings.
+
+    A plain `in` test is wrong in a way that is easy to miss and was caught by a
+    test: **`TERMS` contains `RM`**, so "Terms: 30 days nett" counted as evidence
+    of Ringgit on a document with no currency printed anywhere. `WARM`, `FORM` and
+    `PERMIT` do the same.
+
+    The boundary is "not a letter" rather than ``, because `RM1,984.00` has no
+    word break between the marker and the digits and is the commonest way a
+    Malaysian invoice prints an amount. Longest first, so `MYR` wins over a
+    hypothetical `MY`.
+    """
+    symbols = sorted(
+        (s for s in CURRENCY_SYNONYMS if len(s) >= 2), key=len, reverse=True
+    )
+    body = "|".join(re.escape(symbol) for symbol in symbols)
+    return re.compile(r"(?<![A-Z])(?:%s)(?![A-Z])" % body)
+
+
+_MARKERS = _marker_pattern()
+
+
+def currencies_printed(text: str) -> set[str]:
+    """Every ISO code evidenced by a marker on the page.
+
+    Two characters or more, so a bare `$` does not make every page USD.
+    """
+    return {
+        CURRENCY_SYNONYMS[match] for match in _MARKERS.findall(text.upper())
+        if match in CURRENCY_SYNONYMS
+    }
 
 
 def _currency_is_derivable(value: Any, text: str) -> bool:
-    """A currency not printed as a code, but implied by what is printed.
+    """A currency not printed as an ISO code, but evidenced by what *is* printed.
 
-    Two ways it is derivable, and no others:
+    One way only: a marker for that same currency appears on the page. `RM1,234.50`
+    means MYR, and answering `MYR` is reading the document rather than guessing.
 
-    * a symbol for that same currency appears -- `RM1,234.50` means MYR, and
-      answering `MYR` is reading the document rather than guessing;
-    * **no** currency marker appears anywhere, and the answer is the template's
-      default. A Malaysian invoice that prints bare amounts is in Ringgit, and
-      this is FDIP's documented decision rather than the model's inference.
+    **There is no default.** An earlier version accepted MYR when no marker
+    appeared at all, on the reasoning that a Malaysian invoice with bare amounts is
+    in Ringgit. That looked harmless on a Malaysian corpus and is not: a document
+    priced in Singapore dollars whose `S$` the OCR dropped would have been accepted
+    as Ringgit, silently, at roughly 3.2x the real amount. A currency nobody
+    printed now goes to a human.
 
-    If a *different* currency's marker appears, the derivation fails: a document
-    showing `S$` and an answer of `MYR` is a real disagreement and belongs in
-    review.
+    A *different* currency's marker fails for the same reason: a page showing `S$`
+    and an answer of `MYR` is a real disagreement, not a gap.
     """
     code = str(value or "").strip().upper()
     if not code:
         return False
-    upper = text.upper()
-    present = {
-        iso for symbol, iso in CURRENCY_SYNONYMS.items()
-        if symbol in upper and len(symbol) >= 2
-    }
-    if code in present:
-        return True
-    return not present and code == DEFAULT_CURRENCY
+    present = currencies_printed(text)
+    return code in present
 
 
 def _total_is_derivable(value: Any, data: Mapping[str, Any]) -> bool:
@@ -104,4 +143,4 @@ def is_derivable(path: str, value: Any, data: Mapping[str, Any],
     return False
 
 
-__all__ = ["DERIVABLE_PATHS", "is_derivable"]
+__all__ = ["DERIVABLE_PATHS", "currencies_printed", "is_derivable"]

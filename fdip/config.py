@@ -47,6 +47,11 @@ class Settings:
     provider_mode: str
     model: str
     extract_thinking: str
+    """The override, when `FDIP_EXTRACT_THINKING` is set explicitly. Empty means
+    the per-route defaults below apply."""
+    extract_thinking_digital: str
+    extract_thinking_scan: str
+    scan_auto_accept: bool
     key_pepper: str
     session_secret: str
     monthly_ceiling_usd: float
@@ -60,6 +65,15 @@ class Settings:
     rate_limit_per_minute: int = 60
     extract_max_tokens: int = 16000
     deepseek_api_key: str = field(default="", repr=False)
+
+    def thinking_for_route(self, route: str) -> str:
+        """`on` for a text layer, `repair` for a scan, unless overridden.
+
+        Route A is the text layer; B is OCR and C is page images, and both of those
+        are documents the model has to reason about rather than read.
+        """
+        return (self.extract_thinking_digital if route == "A"
+                else self.extract_thinking_scan)
 
     @property
     def blob_dir(self) -> Path:
@@ -111,9 +125,19 @@ def load_settings(env_file: str | os.PathLike[str] | None = ".env") -> Settings:
     pepper = pepper or secrets.token_hex(32)
     session_secret = session_secret or secrets.token_hex(32)
 
-    thinking = os.environ.get("FDIP_EXTRACT_THINKING", "repair").strip().lower()
-    if thinking not in ("on", "off", "repair"):
-        raise ValueError("FDIP_EXTRACT_THINKING must be on, off or repair")
+    # Per route, because the two routes were measured differently and option (c)
+    # was never actually measured at all -- see PHASE1_DECISION.md. Digital gets
+    # reasoning on, which is the only setting with a 420-document result behind it.
+    # Scans get option (c), where the extra reasoning is worth its cost because OCR
+    # text is what the first attempt has to work from.
+    thinking = os.environ.get("FDIP_EXTRACT_THINKING", "").strip().lower()
+    digital = os.environ.get("FDIP_EXTRACT_THINKING_DIGITAL", "on").strip().lower()
+    scan = os.environ.get("FDIP_EXTRACT_THINKING_SCAN", "repair").strip().lower()
+    for name, value in (("FDIP_EXTRACT_THINKING", thinking),
+                        ("FDIP_EXTRACT_THINKING_DIGITAL", digital),
+                        ("FDIP_EXTRACT_THINKING_SCAN", scan)):
+        if value and value not in ("on", "off", "repair"):
+            raise ValueError("%s must be on, off or repair, not %r" % (name, value))
 
     origins = tuple(
         o.strip() for o in
@@ -126,6 +150,11 @@ def load_settings(env_file: str | os.PathLike[str] | None = ".env") -> Settings:
         provider_mode=mode,
         model=os.environ.get("TOOLKIT_MODEL", "deepseek-flash"),
         extract_thinking=thinking,
+        extract_thinking_digital=thinking or digital,
+        extract_thinking_scan=thinking or scan,
+        # Default false. Route B produced 13 silent errors in 30 mild scans, so a
+        # scanned document is not auto-completed until `--final` proves otherwise.
+        scan_auto_accept=_bool("FDIP_SCAN_AUTO_ACCEPT", False),
         key_pepper=pepper,
         session_secret=session_secret,
         monthly_ceiling_usd=float(

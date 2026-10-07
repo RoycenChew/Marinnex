@@ -11,6 +11,13 @@ documents were both the model tidying a part code off the end of a cell, so the
 text now demands the cell verbatim.
 
 Money is a decimal plus a currency, never a float (rule 2.2).
+
+Several descriptions used to end "Zero if none", and that was a mistake caught by
+the live smoke test: it asks the model to invent a value for a line the document
+does not have, grounding then correctly reports the invented zero as `not_found`,
+and the document goes to review for a field that was simply absent. **Absence is
+verifiable; an invented zero is not.** So an optional field that is not printed is
+omitted, and a zero is only ever an answer where a zero is actually shown.
 """
 from __future__ import annotations
 
@@ -186,19 +193,23 @@ INVOICE_TEMPLATE_FIELDS: tuple[TemplateField, ...] = (
     TemplateField(
         "discount_amount", "Discount", "decimal",
         "Any discount deducted before tax, labelled Discount, Less or Diskaun. "
-        "Zero if none.",
+        "Omit this field entirely if the document shows no discount line: do "
+        "not answer zero for a line that is not printed.",
         required_default=False, money=True,
     ),
     TemplateField(
         "tax_rate", "Tax rate", "decimal",
-        "The tax percentage as a number, so 8 for 8 percent. Zero if the "
-        "document shows no tax. The line is labelled SST, Cukai Jualan, Cukai "
-        "Jualan & Perkhidmatan, Service Tax, Sales Tax, GST or VAT.",
+        "The tax percentage as a number, so 8 for 8 percent. The line is "
+        "labelled SST, Cukai Jualan, Cukai Jualan & Perkhidmatan, Service Tax, "
+        "Sales Tax, GST or VAT. Omit this field entirely if no tax line is "
+        "printed; answer 0 only where a zero rate is actually shown.",
         required_default=False,
     ),
     TemplateField(
         "tax_amount", "Tax amount", "decimal",
-        "The tax amount in currency, not the percentage. Zero if none.",
+        "The tax amount in currency, not the percentage. Omit this field "
+        "entirely if no tax line is printed; answer 0 only where a zero amount "
+        "is actually shown.",
         required_default=False, money=True, grounding="derivable",
     ),
     TemplateField(
@@ -211,7 +222,8 @@ INVOICE_TEMPLATE_FIELDS: tuple[TemplateField, ...] = (
     TemplateField(
         "rounding_adjustment", "Rounding", "decimal",
         "Any rounding adjustment line, labelled Rounding or Pembundaran. "
-        "Malaysian invoices round to the nearest 5 sen.",
+        "Malaysian invoices round to the nearest 5 sen. Omit this field "
+        "entirely if no such line is printed.",
         required_default=False, money=True,
     ),
     TemplateField(

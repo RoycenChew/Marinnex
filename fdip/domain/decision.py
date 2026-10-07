@@ -7,11 +7,25 @@ completed     if every required field is grounded (exact | normalized | derivabl
 needs_review  otherwise, with per-field reasons
 ```
 
-Two things about it are easy to get wrong and are therefore spelled out here.
+Four things about it are easy to get wrong and are therefore spelled out here.
 
 `fuzzy_ocr` does **not** count as grounded. A single-edit match against a
 low-confidence OCR word is exactly the case where the value is plausible and
 wrong, so it goes to a human.
+
+**An optional field tolerates its absence, not a wrong value.** A `not_found`
+value on an optional field held the document back from nothing, because the rule
+only raised a reason for required fields. `not_found` is the strongest
+hallucination signal there is (3.4), and it now routes to review whether the
+schema required the field or not. A *null* optional field still completes — all
+eleven ungrounded fields in the live smoke test were that case, and reviewing
+them would mean reviewing every document.
+
+**OCR evidence does not auto-complete** while `allow_ocr_auto_accept` is false,
+which is the default. Route B produced 13 silent errors in 30 mild scans, and the
+likely mechanism is that an OCR misread is grounded against the same misread
+words: grounding agrees with itself and the error leaves no trace. Until
+`run_benchmark.py --final` measures route B, a scanned document goes to a human.
 
 The rule returns reasons, not just a verdict. A `needs_review` with no reason is
 useless to a reviewer and indistinguishable from a bug, so the reason list is
@@ -22,13 +36,23 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
+from fdip.domain.derivation import DERIVABLE_PATHS
 from fdip.domain.statuses import GROUNDED_MATCHES, FieldStatus, Status
 from fdip.domain.validators import ValidationResult
 
-DECISION_RULE_VERSION = "3.6.1"
+DECISION_RULE_VERSION = "3.6.2"
+"""Bumped from 3.6.1: ungrounded optional values and OCR evidence now hold a
+document back. Stored on every extraction, so a result decided under the old rule
+stays explainable."""
 
 OCR_CONFIDENCE_THRESHOLD = 0.75
 """Below this, a page is a critical warning rather than a usable source."""
+
+OCR_SOURCES: frozenset[str] = frozenset({"ocr", "vision"})
+"""Evidence sources that are a reading of an image rather than the document's own
+characters. `vision` is included ahead of route C for the same reason."""
+
+SCAN_REVIEW_REASON = "scanned_document_review"
 
 
 @dataclass(frozen=True)
@@ -40,6 +64,17 @@ class FieldSignal:
     match: str
     required: bool
     min_ocr_confidence: float | None = None
+    sources: tuple[str, ...] = ()
+    """Where this field's evidence came from: `text_layer`, `ocr` or `vision`.
+
+    Needed because the scan rule is about the evidence, not about the file. A PDF
+    with a text-layer header and a scanned table is a scan for the table, which is
+    the part OCR gets wrong and the part that matters.
+    """
+
+    @property
+    def from_image(self) -> bool:
+        return any(source in OCR_SOURCES for source in self.sources)
 
 
 @dataclass(frozen=True)
@@ -78,6 +113,7 @@ def decide(
     schema_valid: bool = True,
     truncated: bool = False,
     warnings: Sequence[str] = (),
+    allow_ocr_auto_accept: bool = False,
 ) -> Decision:
     reasons: list[str] = []
     field_reasons: dict[str, tuple[str, ...]] = {}
@@ -86,10 +122,18 @@ def decide(
         status, why = field_status(signal)
         if why:
             field_reasons[signal.path] = why
-        if status != FieldStatus.ACCEPTED.value and signal.required:
-            reasons.append("field_not_grounded:" + signal.path)
-        elif status == FieldStatus.MISSING.value:
+        if status == FieldStatus.MISSING.value:
+            # Only a required field can be MISSING; an absent optional field is
+            # ACCEPTED, which is why a null never reaches here.
             reasons.append("required_field_missing:" + signal.path)
+        elif status != FieldStatus.ACCEPTED.value:
+            # Required or not. A value the schema did not ask for is still a value
+            # somebody will read, and one that is not on the page is the strongest
+            # hallucination signal we have.
+            reasons.append("field_not_grounded:" + signal.path)
+
+    if not allow_ocr_auto_accept and any(s.from_image for s in signals):
+        reasons.append(SCAN_REVIEW_REASON)
 
     if not schema_valid:
         reasons.append("schema_invalid")
@@ -113,6 +157,9 @@ def decide(
 
 __all__ = [
     "DECISION_RULE_VERSION",
+    "DERIVABLE_PATHS",
+    "OCR_SOURCES",
+    "SCAN_REVIEW_REASON",
     "Decision",
     "FieldSignal",
     "OCR_CONFIDENCE_THRESHOLD",

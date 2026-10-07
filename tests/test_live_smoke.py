@@ -63,7 +63,10 @@ def live_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
                        "sqlite:///" + str(tmp_path / "data" / "live.db"))
     monkeypatch.setenv("FDIP_KEY_PEPPER", "live-smoke-pepper-0123456789abcdef")
     monkeypatch.setenv("FDIP_SESSION_SECRET", "live-smoke-secret-0123456789abcd")
-    monkeypatch.setenv("FDIP_EXTRACT_THINKING", "repair")
+    # Deliberately not overridden: a digital document should run with the
+    # per-route default (reasoning on), which is what this test is for.
+    monkeypatch.delenv("FDIP_EXTRACT_THINKING", raising=False)
+    monkeypatch.delenv("FDIP_SCAN_AUTO_ACCEPT", raising=False)
     monkeypatch.setenv("FDIP_DEV_SEED", "1")
     monkeypatch.setenv("FDIP_SANDBOX", "0")
     monkeypatch.setenv("FDIP_AI_MONTHLY_CEILING_USD", str(CEILING_USD))
@@ -107,6 +110,9 @@ def test_one_real_deepseek_call(live_settings: Any) -> None:
     models = build_model_stack(settings, ceiling_usd=CEILING_USD)
     assert models.mode == "live"
     assert models.provider_name != "mock"
+    # A digital PDF is route A, so the per-route default applies: reasoning on.
+    assert settings.thinking_for_route("A") == "on"
+    assert settings.scan_auto_accept is False
 
     outcome = run_job(JobContext(
         engine=engine, settings=settings, models=models, project_id=project_id,
@@ -134,7 +140,14 @@ def test_one_real_deepseek_call(live_settings: Any) -> None:
         1 for row in fields.values()
         if str(row["match"]) in ("exact", "normalized", "derived")
     )
-    print("  fields=%d grounded=%d" % (len(fields), grounded))
+    print("  fields=%d grounded=%d  thinking=%s"
+          % (len(fields), grounded, models.thinking))
+    if extraction["reasons"]:
+        print("  reasons: %s" % ", ".join(str(r) for r in extraction["reasons"]))
+    for path, row in sorted(fields.items()):
+        if (row["value_json"] not in (None, "")
+                and str(row["match"]) not in ("exact", "normalized", "derived")):
+            print("  UNGROUNDED NON-NULL %-28s match=%s" % (path, row["match"]))
 
     # A real call happened and was priced. An unpriced call would leave the
     # ceiling unenforceable, which the governor refuses rather than pretending.
@@ -157,5 +170,19 @@ def test_one_real_deepseek_call(live_settings: Any) -> None:
     assert grounded >= 10, {
         path: str(row["match"]) for path, row in fields.items()
     }
-    assert extraction["status"] in ("completed", "needs_review")
+
+    # Every ungrounded field must be *absent*, not a value nobody can find. This is
+    # the check that makes "28 of 39 grounded" a sentence about the document rather
+    # than about the model: the other eleven are fields this invoice does not have.
+    invented = {
+        path: str(row["match"]) for path, row in fields.items()
+        if row["value_json"] not in (None, "")
+        and str(row["match"]) not in ("exact", "normalized", "derived")
+    }
+    assert not invented, (
+        "these fields carry a value that is not on the page: %s" % invented
+    )
+
+    # A clean digital invoice is the one case that should need no human.
+    assert extraction["status"] == "completed", list(extraction["reasons"])
     engine.dispose()
