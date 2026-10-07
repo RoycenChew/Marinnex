@@ -1,0 +1,68 @@
+import { http, HttpResponse } from 'msw';
+// Three levels up, not two: this file is web/src/mocks/, so `../../` is web/.
+// The captured responses live in fdip/samples/ beside the backend that produced
+// them, which is also why vite.config.ts has to allow serving from outside the
+// web/ root.
+import examples from '../../../samples/examples.json';
+
+/** One captured response, keyed as `"<METHOD> /v1/<path>"`. */
+type Example = { status: number; body: unknown };
+
+// A cast is needed because the JSON is a flat map of route strings whose values
+// are deliberately heterogeneous -- each one mirrors a different endpoint's
+// response shape. Typing it per-route would duplicate the OpenAPI types that
+// already describe them.
+const captured = examples as unknown as Record<string, Example | undefined>;
+
+const getResponse = (key: string) => {
+  const example = captured[key];
+  if (!example) {
+    // Loud rather than silent: a missing fixture should look like a missing
+    // fixture, not like an empty screen.
+    return HttpResponse.json(
+      { code: 'mock_not_found', detail: `no captured response for "${key}"` },
+      { status: 404 },
+    );
+  }
+  return HttpResponse.json(example.body, { status: example.status });
+};
+export const handlers = [
+  http.get('*/v1/auth/me', () => getResponse('GET /v1/auth/me')),
+  http.post('*/v1/auth/login', () => HttpResponse.json({}, { status: 200 })),
+  http.post('*/v1/auth/logout', () => HttpResponse.json({}, { status: 204 })),
+  http.get('*/v1/templates', () => getResponse('GET /v1/templates')),
+  http.post('*/v1/documents', () => getResponse('POST /v1/documents')),
+  http.get('*/v1/documents', () => getResponse('GET /v1/documents')),
+  
+  // Note: for document processing, we need to return 'processing' status first, then 'completed' after some time if we want to simulate. 
+  // Let's just return completed for now, or match on id.
+  http.get('*/v1/documents/:id', ({ params }) => {
+    if (params.id === 'doc_1m4an4f05hm4wn0vd') {
+       return getResponse('GET /v1/documents/{id}');
+    }
+    return getResponse('GET /v1/documents/{id} (404, RFC 9457 error)');
+  }),
+  http.get('*/v1/documents/:id/analysis', () => getResponse('GET /v1/documents/{id}/analysis')),
+  http.get('*/v1/documents/:id/extractions', () => HttpResponse.json([getResponse('GET /v1/documents/{id}/analysis').body], { status: 200 })), // Hacky extraction list
+  
+  http.post('*/v1/extractions/:id/corrections', () => getResponse('POST /v1/extractions/{id}/corrections')),
+  http.post('*/v1/extractions/:id/decision', () => getResponse('POST /v1/extractions/{id}/decision')),
+  
+  http.post('*/v1/schemas', () => getResponse('POST /v1/schemas')),
+  http.get('*/v1/schemas', () => HttpResponse.json([{ id: "sch_1m4an4fr241j5spk4", version: 1, name: "AP invoices" }], { status: 200 })), // Not in example directly
+  http.get('*/v1/schemas/:id', () => getResponse('GET /v1/schemas/{id}')),
+  
+  http.post('*/v1/schemas/:id/versions/:v/test-runs', () => getResponse('POST /v1/schemas/{id}/versions/{v}/test-runs')),
+  http.get('*/v1/test-runs/:id', () => {
+     // Return the body of the test run creation directly
+     const res = (examples as any)['POST /v1/schemas/{id}/versions/{v}/test-runs'];
+     return HttpResponse.json(res.body, { status: 200 });
+  }),
+  http.get('*/v1/schemas/:id/versions/:v/contract', () => getResponse('GET /v1/schemas/{id}/versions/{v}/contract')),
+  
+  http.post('*/v1/api-keys', () => getResponse('POST /v1/api-keys')),
+  http.get('*/v1/api-keys', () => getResponse('GET /v1/api-keys')),
+  
+  http.post('*/v1/exports', () => getResponse('POST /v1/exports')),
+  http.get('*/v1/usage', () => getResponse('GET /v1/usage')),
+];

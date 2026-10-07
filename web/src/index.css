@@ -1,0 +1,255 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Tailwind v4 is CSS-first, so this file *is* the config: there is
+ * no tailwind.config.js. Everything visual resolves to a token defined here, and
+ * a one-off hex anywhere else in the codebase is a bug.
+ *
+ * Two rules that shape the palette:
+ *
+ * - Neutrals are slate, not pure grey. A financial reviewer stares at this for
+ *   hours; a faintly cool neutral is easier to sit with than #808080.
+ * - The semantic colours (success/warning/danger/info) are reserved for *status*.
+ *   They never decorate. If a thing is green it means the system is asserting
+ *   something is correct, and that assertion should be worth trusting.
+ */
+
+@theme {
+  /* --- neutrals ------------------------------------------------------- */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  /* --- primary: indigo ------------------------------------------------ */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+
+  /* --- semantic: status only ------------------------------------------ */
+  --color-success-50: #ecfdf5;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+  --color-warning-50: #fffbeb;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-danger-50: #fef2f2;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-info-50: #eff6ff;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+
+  /* --- evidence match classes ----------------------------------------- */
+  /*
+   * One colour per CLAUDE.md 3.4 match class, used for the evidence boxes on the
+   * page viewer and the badge beside the field. The same colour must mean the
+   * same thing in both places or the review screen teaches the wrong lesson.
+   */
+  --color-match-exact: #10b981;
+  --color-match-normalized: #0ea5e9;
+  --color-match-derived: #8b5cf6;
+  --color-match-fuzzy: #f59e0b;
+  --color-match-missing: #94a3b8;
+  --color-match-notfound: #ef4444;
+
+  /* --- radius ---------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* --- typography ------------------------------------------------------ */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas,
+    monospace;
+
+  /* 12 / 13 / 14 / 16 / 20 / 24, with line heights that hold a 4px rhythm. */
+  --text-2xs: 0.6875rem; /* 11px - table micro-labels only */
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem; /* 12px */
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.8125rem; /* 13px - the default for dense UI */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem; /* 14px - body */
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1rem; /* 16px */
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.25rem; /* 20px - page title */
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem; /* 24px - display */
+  --text-2xl--line-height: 2rem;
+
+  /* --- shadows: restrained; elevation comes from borders first --------- */
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-sm: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.04);
+  --shadow-lg: 0 12px 24px -6px rgb(15 23 42 / 0.12), 0 4px 8px -4px rgb(15 23 42 / 0.06);
+
+  /* --- layout ---------------------------------------------------------- */
+  --spacing-sidebar: 15rem; /* 240px expanded */
+  --spacing-sidebar-collapsed: 3.5rem; /* 56px, icons only */
+  --spacing-topbar: 3.5rem; /* 56px */
+  --spacing-content-max: 87.5rem; /* 1400px */
+}
+
+/*
+ * Semantic surface tokens. Components reference *these*, never a slate number
+ * directly, which is what makes dark mode a 20-line override instead of a
+ * rewrite of every component.
+ */
+@layer base {
+  :root {
+    --surface-page: var(--color-slate-50);
+    --surface-raised: #ffffff;
+    --surface-overlay: #ffffff;
+    --surface-sunken: var(--color-slate-100);
+    --surface-hover: var(--color-slate-100);
+    --surface-selected: var(--color-brand-50);
+
+    --border-subtle: var(--color-slate-200);
+    --border-strong: var(--color-slate-300);
+    --border-focus: var(--color-brand-500);
+
+    --text-primary: var(--color-slate-900);
+    --text-secondary: var(--color-slate-600);
+    --text-tertiary: var(--color-slate-500);
+    --text-inverted: #ffffff;
+    --text-brand: var(--color-brand-700);
+
+    --accent-solid: var(--color-brand-600);
+    --accent-solid-hover: var(--color-brand-700);
+    --accent-subtle: var(--color-brand-50);
+  }
+
+  .dark {
+    /*
+     * Not an inversion. The page is slate-950 and raised surfaces are *lighter*,
+     * so elevation still reads the way it does in light mode; a dark theme that
+     * darkens its cards loses that entirely.
+     */
+    --surface-page: var(--color-slate-950);
+    --surface-raised: var(--color-slate-900);
+    --surface-overlay: var(--color-slate-800);
+    --surface-sunken: #0b1220;
+    --surface-hover: var(--color-slate-800);
+    --surface-selected: color-mix(in srgb, var(--color-brand-500) 16%, transparent);
+
+    --border-subtle: var(--color-slate-800);
+    --border-strong: var(--color-slate-700);
+    --border-focus: var(--color-brand-400);
+
+    --text-primary: var(--color-slate-100);
+    --text-secondary: var(--color-slate-400);
+    --text-tertiary: var(--color-slate-500);
+    --text-inverted: var(--color-slate-950);
+    --text-brand: var(--color-brand-300);
+
+    --accent-solid: var(--color-brand-500);
+    --accent-solid-hover: var(--color-brand-400);
+    --accent-subtle: color-mix(in srgb, var(--color-brand-500) 14%, transparent);
+
+    /* Lifted so they clear WCAG AA against a dark surface. */
+    --color-match-exact: #34d399;
+    --color-match-normalized: #38bdf8;
+    --color-match-derived: #a78bfa;
+    --color-match-fuzzy: #fbbf24;
+    --color-match-missing: #64748b;
+    --color-match-notfound: #f87171;
+  }
+
+  * {
+    border-color: var(--border-subtle);
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--surface-page);
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+  }
+
+  /*
+   * Every focusable thing gets the same ring. Keyboard users are a requirement
+   * here, not a nicety: the review screen is designed to be driven with J/K/E/A.
+   */
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  /* Money and any aligned figure. Proportional digits make a column of amounts
+     impossible to scan, which is most of what this product shows. */
+  .tabular,
+  td.tabular,
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-200);
+    color: var(--color-slate-900);
+  }
+
+  .dark ::selection {
+    background-color: var(--color-brand-700);
+    color: #ffffff;
+  }
+
+  /* Scrollbars, so a dark page does not get a bright scroll gutter. */
+  * {
+    scrollbar-color: var(--border-strong) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+@layer utilities {
+  /* Shorthands for the semantic tokens, so markup stays readable. */
+  .bg-page { background-color: var(--surface-page); }
+  .bg-raised { background-color: var(--surface-raised); }
+  .bg-sunken { background-color: var(--surface-sunken); }
+  .bg-overlay { background-color: var(--surface-overlay); }
+  .border-subtle { border-color: var(--border-subtle); }
+  .border-strong { border-color: var(--border-strong); }
+  .text-primary { color: var(--text-primary); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-tertiary { color: var(--text-tertiary); }
+  .text-brand { color: var(--text-brand); }
+  .bg-accent { background-color: var(--accent-solid); }
+  .bg-accent-subtle { background-color: var(--accent-subtle); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .motion-safe-only {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
