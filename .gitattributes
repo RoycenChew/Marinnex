@@ -1,0 +1,7 @@
+# LF everywhere, matching the toolkit's hygiene rule (CLAUDE.md section 4).
+# Without this, Git on Windows checks these out as CRLF and the toolkit's
+# line-ending check would fail on anything shared between the two repos.
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.xlsx binary
