@@ -262,6 +262,20 @@ class TestRunDocument(BaseModel):
     fields: dict[str, str] = Field(default_factory=dict)
 
 
+class TestRunProblem(BaseModel):
+    """One required field that was not found, and what to do about it.
+
+    A failed run that only says "did not pass" leaves a customer guessing. There
+    are exactly two things they can do — pick documents that contain the field,
+    or make it optional — so the message says both.
+    """
+
+    path: str
+    missing_from: int
+    documents: int
+    message: str
+
+
 class TestRun(BaseModel):
     test_run_id: str
     schema_id: str
@@ -269,6 +283,8 @@ class TestRun(BaseModel):
     status: str
     passed: bool
     per_document: list[TestRunDocument]
+    #: Empty when the run passed: there is nothing to act on.
+    problems: list[TestRunProblem] = Field(default_factory=list)
     created_at: datetime | None = None
     finished_at: datetime | None = None
 

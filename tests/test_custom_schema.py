@@ -733,3 +733,67 @@ def test_an_absent_custom_field_completes_when_optional_and_gates_when_required(
             )
         assert blocked.status_code == 409
         assert blocked.json()["code"] == "schema_test_run_required"
+
+
+def test_a_failed_test_run_says_which_field_was_missing_and_what_to_do(
+    client: Any, upload: Any, run_worker: Any
+) -> None:
+    """A failed test run has to be actionable, not just red.
+
+    "Did not pass" tells a customer nothing. The two things they can actually do
+    are pick documents that contain the field, or make the field optional, so
+    the run says which field was missing, on how many documents, and offers
+    exactly those two choices.
+    """
+    ids = []
+    for name in ("invoice_digital", "invoice_malay", "invoice_two_tax_lines"):
+        document_id, _ = upload(name)
+        ids.append(document_id)
+    run_worker(client.app.state.fdip.engine)
+
+    created = client.post("/v1/schemas", json={
+        "template_id": "tpl_invoice_v1",
+        "name": "Needs a field nobody has",
+        "fields": TEMPLATE_FIELDS,
+        "locale_hints": {"date_order": "DMY"},
+        "custom_fields": [{
+            "name": "site_ref", "kind": "text",
+            "description": "The site reference near the delivery address.",
+            "required": True,
+        }],
+    }).json()
+
+    run = client.post(
+        "/v1/schemas/%s/versions/1/test-runs" % created["schema_id"],
+        json={"document_ids": ids},
+    )
+    assert run.status_code == 202, run.text
+    body = run.json()
+    assert body["passed"] is False
+
+    # Every required field that was missing is listed, not just the first:
+    # a customer fixing one and re-running only to meet the next is the slow
+    # way to find out. The field this schema is actually blocked on is absent
+    # from all three.
+    problems_found = {entry["path"]: entry for entry in body["problems"]}
+    problem = problems_found["site_ref"]
+    assert problem["missing_from"] == 3
+    assert problem["documents"] == 3
+    assert problem["message"] == (
+        "site_ref not found on 3 of 3 documents — choose documents that "
+        "contain it, or make the field optional."
+    )
+
+    # A run that passes says nothing, because there is nothing to act on.
+    passing = client.post("/v1/schemas", json={
+        "template_id": "tpl_invoice_v1",
+        "name": "Nothing required of nobody",
+        "fields": TEMPLATE_FIELDS,
+        "locale_hints": {"date_order": "DMY"},
+    }).json()
+    ok = client.post(
+        "/v1/schemas/%s/versions/1/test-runs" % passing["schema_id"],
+        json={"document_ids": ids},
+    )
+    assert ok.json()["passed"] is True
+    assert ok.json()["problems"] == []

@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, Copy, FlaskConical, Pencil, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Copy,
+  FlaskConical,
+  Pencil,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import {
   createTestRun,
@@ -242,6 +250,22 @@ export default function SchemaDetail() {
                     {testRunMutation.data.passed ? 'Passed' : 'Did not pass'}
                   </span>
                 </div>
+                {/* A failed run has to be actionable. The backend names each
+                    missing required field and the two things that fix it. */}
+                {(testRunMutation.data.problems ?? []).length > 0 && (
+                  <ul className="mb-3 flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-warning-50)] p-3 dark:bg-[var(--color-warning-500)]/10">
+                    {testRunMutation.data.problems?.map((problem) => (
+                      <li
+                        key={problem.path}
+                        className="flex items-start gap-2 text-xs leading-relaxed text-[var(--color-warning-700)] dark:text-[var(--color-warning-500)]"
+                      >
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        {problem.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
                 <ul className="flex flex-col gap-2">
                   {testRunMutation.data.per_document.map((row) => {
                     const custom = (activeVersion?.custom_fields ?? []).map(

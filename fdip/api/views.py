@@ -278,6 +278,36 @@ def template_view(row: RowMapping) -> dict[str, Any]:
     }
 
 
+def _test_run_problems(per_document: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Which required fields were missing, and from how many documents.
+
+    Derived from the stored per-document results rather than stored separately,
+    so a run recorded before this existed still explains itself.
+    """
+    documents = len(per_document)
+    if not documents:
+        return []
+
+    missing: dict[str, int] = {}
+    for entry in per_document:
+        for path, found in (entry.get("fields") or {}).items():
+            if found != "found":
+                missing[path] = missing.get(path, 0) + 1
+
+    return [
+        {
+            "path": path,
+            "missing_from": count,
+            "documents": documents,
+            "message": (
+                "%s not found on %d of %d documents — choose documents that "
+                "contain it, or make the field optional." % (path, count, documents)
+            ),
+        }
+        for path, count in sorted(missing.items())
+    ]
+
+
 def test_run_view(row: RowMapping) -> dict[str, Any]:
     return {
         "test_run_id": str(row["id"]),
@@ -286,6 +316,7 @@ def test_run_view(row: RowMapping) -> dict[str, Any]:
         "status": str(row["status"]),
         "passed": bool(row["passed"]),
         "per_document": list(row["per_document"] or []),
+        "problems": _test_run_problems(list(row["per_document"] or [])),
         "created_at": _iso(row["created_at"]),
         "finished_at": _iso(row["finished_at"]),
     }

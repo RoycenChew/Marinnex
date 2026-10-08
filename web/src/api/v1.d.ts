@@ -1246,6 +1246,8 @@ export interface components {
             passed: boolean;
             /** Per Document */
             per_document: components["schemas"]["TestRunDocument"][];
+            /** Problems */
+            problems?: components["schemas"]["TestRunProblem"][];
             /** Schema Id */
             schema_id: string;
             /** Status */
@@ -1269,6 +1271,24 @@ export interface components {
             fields_total: number;
             /** Status */
             status: string;
+        };
+        /**
+         * TestRunProblem
+         * @description One required field that was not found, and what to do about it.
+         *
+         *     A failed run that only says "did not pass" leaves a customer guessing. There
+         *     are exactly two things they can do — pick documents that contain the field,
+         *     or make it optional — so the message says both.
+         */
+        TestRunProblem: {
+            /** Documents */
+            documents: number;
+            /** Message */
+            message: string;
+            /** Missing From */
+            missing_from: number;
+            /** Path */
+            path: string;
         };
         /** TestRunRequest */
         TestRunRequest: {

@@ -1767,6 +1767,13 @@
             "title": "Per Document",
             "type": "array"
           },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/TestRunProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
           "schema_id": {
             "title": "Schema Id",
             "type": "string"
@@ -1828,6 +1835,35 @@
           "fields_total"
         ],
         "title": "TestRunDocument",
+        "type": "object"
+      },
+      "TestRunProblem": {
+        "description": "One required field that was not found, and what to do about it.\n\nA failed run that only says \"did not pass\" leaves a customer guessing. There\nare exactly two things they can do \u2014 pick documents that contain the field,\nor make it optional \u2014 so the message says both.",
+        "properties": {
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "missing_from": {
+            "title": "Missing From",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "missing_from",
+          "documents",
+          "message"
+        ],
+        "title": "TestRunProblem",
         "type": "object"
       },
       "TestRunRequest": {
