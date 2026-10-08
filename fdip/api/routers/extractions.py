@@ -37,6 +37,17 @@ from fdip.domain.validators import validate
 router = APIRouter(tags=["extractions"])
 
 
+class FieldReviewRequest(BaseModel):
+    path: str = Field(min_length=1, max_length=200)
+
+
+class FieldReviews(BaseModel):
+    """The paths a reviewer has looked at and accepted on this extraction."""
+
+    extraction_id: str
+    checked_paths: list[str]
+
+
 class Change(BaseModel):
     path: str = Field(min_length=1, max_length=200)
     value: Any = None
@@ -302,3 +313,105 @@ def decide_extraction(
 
 
 __all__ = ["router"]
+
+
+# --- per-field review marks -------------------------------------------------
+#
+# A reviewer who opens a flagged field, looks at the page and decides the value
+# is fine has, until now, had nowhere to put that. `corrections` records a
+# *change*; the decision endpoint is all-or-nothing for the document. So the
+# workspace counted checked fields in browser state and lost them on reload,
+# halfway down a forty-line invoice.
+#
+# This needs no new table. "A person looked at this value and accepted it" is an
+# audit fact, and `audit_events` already carries actor, action, object and a
+# JSON detail. The mark is the event, which also means the trail shows who
+# checked what and when — exactly what a sampled audit of the silent error rate
+# would want to read. The detail holds the field *path* only, never its value
+# (rule 2.13).
+
+_FIELD_CHECKED = "field_checked"
+_FIELD_UNCHECKED = "field_unchecked"
+
+
+def _checked_paths(repo: ProjectRepository, extraction_id: str) -> list[str]:
+    """Replay this extraction's check events, oldest first, and fold them.
+
+    A set rather than a tally: checking twice is checking once, and unchecking
+    clears it whatever came before.
+    """
+    marked: set[str] = set()
+    for event in reversed(repo.audit_events(limit=1000)):
+        if str(event["object_id"]) != extraction_id:
+            continue
+        action = str(event["action"])
+        path = (event["detail"] or {}).get("path")
+        if not isinstance(path, str):
+            continue
+        if action == _FIELD_CHECKED:
+            marked.add(path)
+        elif action == _FIELD_UNCHECKED:
+            marked.discard(path)
+    return sorted(marked)
+
+
+def _extraction_or_404(repo: ProjectRepository, extraction_id: str) -> Any:
+    extraction = repo.extraction(extraction_id)
+    if extraction is None:
+        raise problems.not_found("extraction")
+    return extraction
+
+
+@router.get(
+    "/extractions/{extraction_id}/field-reviews",
+    response_model=FieldReviews,
+)
+def list_field_reviews(
+    extraction_id: str,
+    principal: Annotated[Principal, Depends(any_principal)],
+    repo: ProjectRepository = Depends(repository),
+) -> dict[str, Any]:
+    """Which fields a reviewer has already been through on this extraction."""
+    _extraction_or_404(repo, extraction_id)
+    return {"extraction_id": extraction_id,
+            "checked_paths": _checked_paths(repo, extraction_id)}
+
+
+@router.post(
+    "/extractions/{extraction_id}/field-reviews",
+    response_model=FieldReviews,
+)
+def mark_field_reviewed(
+    extraction_id: str,
+    payload: FieldReviewRequest,
+    principal: Annotated[Principal, Depends(session_principal)],
+    repo: ProjectRepository = Depends(repository),
+) -> dict[str, Any]:
+    """Record that a person has checked one field. Marking twice is harmless."""
+    _extraction_or_404(repo, extraction_id)
+    # Refused rather than stored, so a typo in an integration cannot quietly
+    # accumulate marks against paths that do not exist.
+    if payload.path not in {str(row["path"]) for row in repo.fields(extraction_id)}:
+        raise problems.invalid("no field %r in this extraction" % payload.path)
+    repo.audit(principal.actor, _FIELD_CHECKED, "extraction", extraction_id,
+               {"path": payload.path})
+    return {"extraction_id": extraction_id,
+            "checked_paths": _checked_paths(repo, extraction_id)}
+
+
+@router.delete(
+    "/extractions/{extraction_id}/field-reviews",
+    response_model=FieldReviews,
+)
+def unmark_field_reviewed(
+    extraction_id: str,
+    payload: FieldReviewRequest,
+    principal: Annotated[Principal, Depends(session_principal)],
+    repo: ProjectRepository = Depends(repository),
+) -> dict[str, Any]:
+    """Take the mark off again, for a reviewer who wants a second look."""
+    _extraction_or_404(repo, extraction_id)
+    repo.audit(principal.actor, _FIELD_UNCHECKED, "extraction", extraction_id,
+               {"path": payload.path})
+    return {"extraction_id": extraction_id,
+            "checked_paths": _checked_paths(repo, extraction_id)}

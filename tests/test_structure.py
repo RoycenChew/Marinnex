@@ -258,4 +258,8 @@ def test_the_contract_states_the_two_ui_renderings() -> None:
         "README_RUN.md",
     ):
         assert needle in text, needle
-    assert len(text.splitlines()) < 200, len(text.splitlines())
+    # The cap keeps this document something a UI author will actually read end to
+    # end. Raised from 200 to 210 when `field-reviews` was added: the contract now
+    # covers 29 routes, and the four lines that document one are not padding. Trim
+    # before raising it again.
+    assert len(text.splitlines()) < 210, len(text.splitlines())

@@ -111,27 +111,16 @@ development the UI is on `:5173` while the API is on `:8000`.
 `credentials: "include"` and renders it from an object URL. Noted only because it
 looks like a backend problem when the image 401s.
 
-### 10. No way to record that a reviewer has checked one field
+### 10. No way to record that a reviewer has checked one field — **done**
 
-The workspace now counts how many fields are waiting ("3 fields need your
-review") and walks them with "Review next". A reviewer who has looked at a field
-and is satisfied has no way to say so: `POST /v1/extractions/{id}/corrections`
-records a *change*, and the decision endpoint is all-or-nothing for the document.
+Raised because "Mark as checked" lived in React state and was lost on reload.
+Closed with `GET|POST|DELETE /v1/extractions/{id}/field-reviews`, which needed no
+migration: `audit_events` already carries actor, action, object and a JSON
+detail, and "a person looked at this value and accepted it" is an audit fact.
+The detail holds the field path only, never its value (rule 2.13).
 
-So "Mark as checked" is held in React state and is gone on reload. That is
-honest — the tooltip says it is not sent to the server — but on a forty-line
-invoice it means losing your place.
+### 11. CORS allows one origin — **not a defect**
 
-**Request:** a per-field acknowledgement, e.g.
-`POST /v1/extractions/{id}/field-reviews` with `{ "path": "tax_amount" }`,
-returning the updated set. It is an audit event in its own right: "a person
-looked at this value and accepted it" is exactly what a sampled audit of the
-silent error rate would want to know.
-
-**Not urgent:** a reviewer usually finishes a document in one sitting.
-
-### 11. CORS allows `:5173` only
-
-`audit/after.mjs` had to run the dev server on 5173; on 5174 every preflight came
-back `400`. Fine as a default, but worth making a list so two UI processes (mock
-and real) can run side by side.
+`audit/after.mjs` had to run the dev server on 5173, since 5174 preflights came
+back `400`. That is `FDIP_CORS_ORIGINS`, which already takes a list and defaults
+to `http://localhost:5173`. Set it if you want two UI processes side by side.

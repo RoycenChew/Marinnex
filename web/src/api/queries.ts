@@ -127,6 +127,48 @@ export async function correctExtraction(
   return unwrap(data, error)
 }
 
+/**
+ * Which fields a reviewer has already been through on this extraction.
+ *
+ * Persisted server-side as audit events, so the "N fields need your review"
+ * count survives a reload — it used to live in React state and was lost on
+ * refresh, halfway down a long invoice.
+ */
+export async function listFieldReviews(
+  extractionId: string,
+  projectId: string | null,
+) {
+  const { data, error } = await apiClient.GET(
+    '/v1/extractions/{extraction_id}/field-reviews',
+    {
+      params: {
+        path: { extraction_id: extractionId },
+        query: { project_id: project(projectId) },
+      },
+    },
+  )
+  return unwrap(data, error)
+}
+
+export async function setFieldReviewed(
+  extractionId: string,
+  path: string,
+  checked: boolean,
+  projectId: string | null,
+) {
+  const request = {
+    params: {
+      path: { extraction_id: extractionId },
+      query: { project_id: project(projectId) },
+    },
+    body: { path },
+  }
+  const { data, error } = checked
+    ? await apiClient.POST('/v1/extractions/{extraction_id}/field-reviews', request)
+    : await apiClient.DELETE('/v1/extractions/{extraction_id}/field-reviews', request)
+  return unwrap(data, error)
+}
+
 export async function decideExtraction(
   extractionId: string,
   action: 'approve' | 'reject',

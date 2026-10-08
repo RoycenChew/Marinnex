@@ -17,6 +17,8 @@ import { toast } from 'sonner'
 import {
   correctExtraction,
   decideExtraction,
+  listFieldReviews,
+  setFieldReviewed,
   getAnalysis,
   getDocument,
   listExtractions,
@@ -54,10 +56,9 @@ export default function DocumentAnalysis() {
   const [rejecting, setRejecting] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
-  /* A reviewer's own checklist for this sitting. There is no per-field endpoint
-     — see BACKEND_REQUESTS.md — so this never leaves the browser, and the
-     document-level decision remains the only thing the server is told. */
-  const [checked, setChecked] = useState<Set<string>>(new Set())
+  /* Which fields this reviewer has been through. Held by the server as audit
+     events, so a refresh halfway down a long invoice no longer loses the
+     reviewer's place. */
   /* C10: below 768 px the split view has no room for two panes, so it becomes
      two tabs and selecting a value switches to the page. */
   const narrow = useMediaQuery('(max-width: 768px)')
@@ -86,6 +87,31 @@ export default function DocumentAnalysis() {
   })
 
   const extraction = analysisQuery.data
+  const extractionId = extraction?.extraction_id
+
+  const reviewsQuery = useQuery({
+    queryKey: ['field-reviews', extractionId, activeProjectId],
+    queryFn: () => listFieldReviews(extractionId!, activeProjectId),
+    enabled: !!extractionId,
+  })
+  const checked = useMemo(
+    () => new Set(reviewsQuery.data?.checked_paths ?? []),
+    [reviewsQuery.data],
+  )
+
+  const checkMutation = useMutation({
+    mutationFn: ({ path, next }: { path: string; next: boolean }) =>
+      setFieldReviewed(extractionId!, path, next, activeProjectId),
+    // The server returns the whole set, so the cache takes it rather than
+    // guessing at the new state.
+    onSuccess: (result) =>
+      queryClient.setQueryData(
+        ['field-reviews', extractionId, activeProjectId],
+        result,
+      ),
+    onError: (error) =>
+      toast.error('Not saved', { description: problemMessage(error) }),
+  })
   // Memoised: `?? {}` produces a fresh object every render, which would defeat
   // every memo below it and re-derive the groups and boxes on each keystroke.
   const fields = useMemo(() => extraction?.fields ?? {}, [extraction])
@@ -318,7 +344,7 @@ export default function DocumentAnalysis() {
                         checked={checked.has(path)}
                         onSelect={() => selectField(path)}
                         onCheck={() =>
-                          setChecked((current) => new Set(current).add(path))
+                          checkMutation.mutate({ path, next: !checked.has(path) })
                         }
                         onEdit={() => startEdit(path)}
                         onDraft={setDraft}

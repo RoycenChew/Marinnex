@@ -361,6 +361,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/extractions/{extraction_id}/field-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Field Reviews
+         * @description Which fields a reviewer has already been through on this extraction.
+         */
+        get: operations["list_field_reviews_v1_extractions__extraction_id__field_reviews_get"];
+        put?: never;
+        /**
+         * Mark Field Reviewed
+         * @description Record that a person has checked one field. Marking twice is harmless.
+         */
+        post: operations["mark_field_reviewed_v1_extractions__extraction_id__field_reviews_post"];
+        /**
+         * Unmark Field Reviewed
+         * @description Take the mark off again, for a reviewer who wants a second look.
+         */
+        delete: operations["unmark_field_reviewed_v1_extractions__extraction_id__field_reviews_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -830,6 +858,21 @@ export interface components {
             status: string;
             /** Value */
             value?: unknown;
+        };
+        /** FieldReviewRequest */
+        FieldReviewRequest: {
+            /** Path */
+            path: string;
+        };
+        /**
+         * FieldReviews
+         * @description The paths a reviewer has looked at and accepted on this extraction.
+         */
+        FieldReviews: {
+            /** Checked Paths */
+            checked_paths: string[];
+            /** Extraction Id */
+            extraction_id: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1832,6 +1875,116 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_field_reviews_v1_extractions__extraction_id__field_reviews_get: {
+        parameters: {
+            query?: {
+                /** @description Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403. */
+                project_id?: string | null;
+            };
+            header?: never;
+            path: {
+                extraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldReviews"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_field_reviewed_v1_extractions__extraction_id__field_reviews_post: {
+        parameters: {
+            query?: {
+                /** @description Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403. */
+                project_id?: string | null;
+            };
+            header?: never;
+            path: {
+                extraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldReviews"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unmark_field_reviewed_v1_extractions__extraction_id__field_reviews_delete: {
+        parameters: {
+            query?: {
+                /** @description Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403. */
+                project_id?: string | null;
+            };
+            header?: never;
+            path: {
+                extraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldReviews"];
                 };
             };
             /** @description Validation Error */

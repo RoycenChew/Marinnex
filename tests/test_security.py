@@ -11,6 +11,8 @@ import io
 import logging
 from typing import Any
 
+import pytest
+
 from fdip.adapters import keys as key_tools
 from fdip.adapters.seed import DEV_EMAIL, DEV_PASSWORD
 
@@ -277,3 +279,32 @@ def test_health_is_open_and_names_the_provider_mode(anonymous: Any) -> None:
     assert body["database"] == "ok"
     assert body["provider_mode"] == "mock"
     assert body["pipeline_version"]
+
+
+def test_startup_refuses_without_a_key_pepper(monkeypatch, tmp_path):
+    """A generated pepper silently invalidates every key already issued.
+
+    It used to be required in live mode only, so a local run would start, mint
+    a fresh pepper, and leave every key in `data/fdip.db` failing to
+    authenticate with no error anywhere. Losing credentials is not a
+    development convenience, so the server now refuses to start without one in
+    every mode.
+    """
+    from fdip import config
+
+    for name in ("FDIP_KEY_PEPPER", "FDIP_SESSION_SECRET", "FDIP_PROVIDER_MODE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("FDIP_DATA_DIR", str(tmp_path))
+
+    with pytest.raises(ValueError, match="FDIP_KEY_PEPPER"):
+        config.load_settings(env_file=None)
+
+    # Too short counts as absent: a two-character pepper is not a secret.
+    monkeypatch.setenv("FDIP_KEY_PEPPER", "short")
+    with pytest.raises(ValueError, match="FDIP_KEY_PEPPER"):
+        config.load_settings(env_file=None)
+
+    # Set properly, it starts, and the value is used as given.
+    monkeypatch.setenv("FDIP_KEY_PEPPER", "a-perfectly-adequate-test-pepper")
+    settings = config.load_settings(env_file=None)
+    assert settings.key_pepper == "a-perfectly-adequate-test-pepper"

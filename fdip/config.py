@@ -110,19 +110,27 @@ def load_settings(env_file: str | os.PathLike[str] | None = ".env") -> Settings:
     data_dir = Path(os.environ.get("FDIP_DATA_DIR", "./data")).resolve()
     pepper = os.environ.get("FDIP_KEY_PEPPER", "")
     session_secret = os.environ.get("FDIP_SESSION_SECRET", "")
+    # The pepper is required in **every** mode. It used to be generated outside
+    # live mode as a convenience, and the convenience was that a local server
+    # started happily with a brand-new pepper and left every key already in the
+    # database failing to authenticate, with nothing in the logs to say why.
+    # Silently invalidating credentials is not a convenience. `.env.example`
+    # ships a placeholder; copy it.
+    if len(pepper) < 16:
+        raise ValueError(
+            "FDIP_KEY_PEPPER must be set to at least 16 characters. "
+            "A generated pepper would invalidate every API key already issued. "
+            "Copy .env.example to .env and set one."
+        )
     if mode == "live":
-        # In live mode these are load-bearing: a generated pepper would
-        # invalidate every key already stored, and a generated session secret
-        # would log every user out on restart. Better to refuse to start.
-        for name, value in (("FDIP_KEY_PEPPER", pepper),
-                            ("FDIP_SESSION_SECRET", session_secret)):
-            if len(value) < 16:
-                raise ValueError(
-                    "%s must be set to at least 16 characters in live mode" % name
-                )
+        # The session secret matters less: a generated one logs users out on
+        # restart, which is recoverable. In live mode it is still required.
+        if len(session_secret) < 16:
+            raise ValueError(
+                "FDIP_SESSION_SECRET must be set to at least 16 characters in live mode"
+            )
         if not os.environ.get("DEEPSEEK_API_KEY"):
             raise ValueError("DEEPSEEK_API_KEY is required in live mode")
-    pepper = pepper or secrets.token_hex(32)
     session_secret = session_secret or secrets.token_hex(32)
 
     # Per route, because the two routes were measured differently and option (c)

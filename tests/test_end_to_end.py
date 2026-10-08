@@ -313,3 +313,57 @@ def test_a_document_with_no_printed_currency_routes_to_review(
     assert body["fields"]["currency"]["match"] == "not_found"
     assert body["status"] == "needs_review", body["reasons"]
     assert "field_not_grounded:currency" in body["reasons"]
+
+
+def test_a_reviewer_can_record_that_a_field_was_checked(
+    client: Any, upload: Any, run_worker: Any
+) -> None:
+    """A field a reviewer has looked at and accepted must survive a reload.
+
+    The workspace counts how many fields are waiting and walks them one at a
+    time. Before this the count lived in browser state, so a refresh halfway
+    through a forty-line invoice lost the reviewer's place. It is also an audit
+    fact worth keeping: "a person looked at this value and accepted it" is
+    exactly what a sampled audit of the silent error rate needs.
+    """
+    document_id, _ = upload("invoice_digital")
+    run_worker(client.app.state.fdip.engine)
+    analysis = client.get("/v1/documents/%s/analysis" % document_id).json()
+    extraction_id = analysis["extraction_id"]
+
+    assert client.get(
+        "/v1/extractions/%s/field-reviews" % extraction_id
+    ).json()["checked_paths"] == []
+
+    first = client.post(
+        "/v1/extractions/%s/field-reviews" % extraction_id,
+        json={"path": "total"},
+    )
+    assert first.status_code == 200
+    assert first.json()["checked_paths"] == ["total"]
+
+    # Recording the same path twice is not an error and does not duplicate it.
+    client.post("/v1/extractions/%s/field-reviews" % extraction_id,
+                json={"path": "total"})
+    client.post("/v1/extractions/%s/field-reviews" % extraction_id,
+                json={"path": "subtotal"})
+    assert client.get(
+        "/v1/extractions/%s/field-reviews" % extraction_id
+    ).json()["checked_paths"] == ["subtotal", "total"]
+
+    # Unchecking is how a reviewer takes a second look.
+    client.request(
+        "DELETE", "/v1/extractions/%s/field-reviews" % extraction_id,
+        json={"path": "total"},
+    )
+    assert client.get(
+        "/v1/extractions/%s/field-reviews" % extraction_id
+    ).json()["checked_paths"] == ["subtotal"]
+
+    # A path that is not in this extraction is refused, so a typo in an
+    # integration does not quietly accumulate meaningless rows. 422 is this
+    # API's code for an invalid request, as `problems.invalid` defines it.
+    bad = client.post("/v1/extractions/%s/field-reviews" % extraction_id,
+                      json={"path": "not_a_field"})
+    assert bad.status_code == 422
+    assert bad.json()["code"] == "invalid_request"

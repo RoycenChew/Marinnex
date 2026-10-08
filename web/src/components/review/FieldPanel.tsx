@@ -119,33 +119,34 @@ export function FieldRow({
           {!absent && (
             <VerificationBadge match={entry.match} ocrConfidence={ocrConfidence} />
           )}
-          {/* There is no per-field endpoint, so this is a reviewer's own
-              checklist for this sitting: it clears the field from "needs your
-              review" and nothing more. The document-level Approve is the only
-              thing the server hears about. */}
-          {needsReview && !checked && onCheck && !editing && (
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label={`Mark ${humanisePath(path)} as checked`}
-              title="Mark as checked — your own list, not sent to the server"
-              className="h-5 w-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          {/* A toggle, not a one-way button: a reviewer who marks the wrong row,
+              or wants a second look, needs it back. The mark is recorded on the
+              server as an audit event, so it survives a reload — it changes no
+              status, and the document-level Approve is still the decision. */}
+          {needsReview && onCheck && !editing && (
+            <button
+              type="button"
+              aria-pressed={!!checked}
+              aria-label={
+                checked
+                  ? `${humanisePath(path)} is checked. Undo`
+                  : `Mark ${humanisePath(path)} as checked`
+              }
+              title={checked ? 'Checked. Select to undo.' : 'Mark as checked'}
               onClick={(e) => {
                 e.stopPropagation()
                 onCheck()
               }}
+              className={cn(
+                'inline-flex items-center gap-0.5 rounded-[var(--radius-xs)] px-1 py-0.5 text-[11px]',
+                checked
+                  ? 'text-[var(--color-success-600)]'
+                  : 'text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--text-primary)]',
+              )}
             >
               <CheckCheck className="h-3 w-3" />
-            </Button>
-          )}
-          {checked && (
-            <span
-              title="You marked this as checked"
-              className="inline-flex items-center gap-0.5 text-[11px] text-[var(--color-success-600)]"
-            >
-              <CheckCheck className="h-3 w-3" />
-              Checked
-            </span>
+              {checked ? 'Checked' : 'Mark checked'}
+            </button>
           )}
           {!editing && (
             <Button

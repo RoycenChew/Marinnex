@@ -88,8 +88,8 @@ with `status: "processing"` and empty `data` — not a 404.
   `not_checked`. The first two and `derived` are accepted; the rest go to review, and
   `fuzzy_ocr` means "possible OCR misread" — show it differently.
 - `derived`: not printed, but deterministic code confirmed it from evidence on the page
-  — a currency by its `RM`/`MYR`/`S$` marker, a total by arithmetic, a tax amount by its
-  rate. Those three fields only. Trustworthy, but worth saying so in the UI.
+  — currency by its `RM`/`MYR`/`S$` marker, total by arithmetic, tax amount by its rate.
+  Those three fields only. Trustworthy, but worth saying so in the UI.
 - `status` per field: `accepted` · `needs_review` · `missing` · `corrected`.
 - `validation[].severity` is `info` · `warning` · `critical`; show criticals first, and
   `subtotal_plus_tax_ne_total` is the one users care about.
@@ -105,14 +105,13 @@ banner, not an error**, and expect other `reasons` beside it:
 
 > Scanned documents are reviewed by a person before acceptance.
 
-**A field with nothing printed comes back absent, never zero**: `value: null`,
-`status: "missing"`, `match: "not_checked"`, no evidence. Render those as
-**"Not on document"** — not `0`, not an empty box, not an error, because nothing is
-wrong. Twelve template fields are usually in this state; only `needs_review` wants
-attention. `field_not_grounded:<path>` is the opposite case — a value was returned that
-is *not* on the page — so highlight it and show no box, because there is none. It
-applies to **optional** fields too: an optional field tolerates being absent, not being
-wrong, while a null optional field completes.
+**A field with nothing printed comes back absent, never zero**: `value: null`, `status:
+"missing"`, `match: "not_checked"`, no evidence. Render those as **"Not on document"** —
+not `0`, not an empty box, not an error, because nothing is wrong. Twelve fields are
+usually so; only `needs_review` wants attention. `field_not_grounded:<path>` is the
+opposite case — a value returned that is *not* on the page — so highlight it and show no
+box, because there is none. It applies to **optional** fields too: an optional field
+tolerates being absent, not being wrong, while a null optional field completes.
 
 ## Boxes and page images
 
@@ -130,14 +129,18 @@ with `X-Page-Dpi: 150`; `GET /documents/{id}/file` returns the original bytes.
 "line_items[0].amount", "value": "505.00"}], "reason": "cell misread"}` returns `201`
 and `{"extraction_id": "ext_…new…", "version": 2, "status": "completed", …}`.
 
-A correction **creates a new version** and re-runs validation and the decision; the
-previous version is immutable and still readable, and it costs no AI call. Use the
-returned `extraction_id` from then on; `GET /documents/{id}/extractions` lists all.
+A correction **creates a new version**, re-runs validation and the decision, costs no AI
+call, and leaves the previous immutable. Use the new `extraction_id` from then on;
+`GET /documents/{id}/extractions` lists every version.
 
-`POST /extractions/{id}/decision` takes `{"action": "approve"}` or `{"action":
-"reject", "reason": "duplicate"}` and returns `{"extraction_id", "status"}`. `reject`
-requires a `reason`, and a rejected extraction cannot be corrected
-(`409 already_decided`).
+`POST /extractions/{id}/decision` takes `{"action": "approve"}` or `{"action": "reject",
+"reason": "duplicate"}` → `{"extraction_id", "status"}`. `reject` needs a `reason`; a
+rejected extraction cannot be corrected (`409 already_decided`).
+
+`GET|POST|DELETE /extractions/{id}/field-reviews` marks which fields a reviewer has been
+through, so the count survives a reload. `POST`/`DELETE` take `{"path": ...}`; all return
+sorted `{"extraction_id", "checked_paths"}`. Unknown path → `422`. Marks change no status
+and are audit events holding the path, never the value.
 
 ## Templates, schemas, keys
 

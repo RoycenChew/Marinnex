@@ -67,8 +67,9 @@ Guide, Documents and Workspace.
   the sample corpus here produces a clean digital invoice, and Tesseract is not
   on this machine's PATH. The code path is the same one the badge uses
   everywhere else.
-- "Mark as checked" is the reviewer's own list for one sitting. There is no
-  per-field endpoint, so it is not persisted — logged in `BACKEND_REQUESTS.md`.
+- "Mark as checked" is now persisted: `GET|POST|DELETE
+  /v1/extractions/{id}/field-reviews` records it as an audit event, so the count
+  survives a reload. Verified against the real backend with a scanned sample.
 - Screenshots in `audit/after/` are not versioned, because `web/.gitignore`
   excludes `audit/`.
 

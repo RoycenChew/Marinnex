@@ -30,6 +30,8 @@ const getResponse = (key: string) => {
   }
   return HttpResponse.json(example.body, { status: example.status });
 };
+const checkedPaths = new Set<string>()
+
 export const handlers = [
   http.get('*/v1/auth/me', () => getResponse('GET /v1/auth/me')),
   http.post('*/v1/auth/login', () => HttpResponse.json({}, { status: 200 })),
@@ -83,6 +85,31 @@ export const handlers = [
     HttpResponse.json([buildAnalysis({})]),
   ),
   
+  // Field review marks, kept in memory for the life of the page. The real
+  // backend stores them as audit events; mock mode only needs them to round-trip
+  // so the review count behaves the same way.
+  http.get('*/v1/extractions/:id/field-reviews', ({ params }) =>
+    HttpResponse.json({
+      extraction_id: String(params.id),
+      checked_paths: [...checkedPaths].sort(),
+    }),
+  ),
+  http.post('*/v1/extractions/:id/field-reviews', async ({ params, request }) => {
+    const body = (await request.json()) as { path: string }
+    checkedPaths.add(body.path)
+    return HttpResponse.json({
+      extraction_id: String(params.id),
+      checked_paths: [...checkedPaths].sort(),
+    })
+  }),
+  http.delete('*/v1/extractions/:id/field-reviews', async ({ params, request }) => {
+    const body = (await request.json()) as { path: string }
+    checkedPaths.delete(body.path)
+    return HttpResponse.json({
+      extraction_id: String(params.id),
+      checked_paths: [...checkedPaths].sort(),
+    })
+  }),
   http.post('*/v1/extractions/:id/corrections', () => getResponse('POST /v1/extractions/{id}/corrections')),
   http.post('*/v1/extractions/:id/decision', () => getResponse('POST /v1/extractions/{id}/decision')),
   

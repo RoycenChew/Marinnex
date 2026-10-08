@@ -848,6 +848,43 @@
         "title": "FieldEntry",
         "type": "object"
       },
+      "FieldReviewRequest": {
+        "properties": {
+          "path": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "FieldReviewRequest",
+        "type": "object"
+      },
+      "FieldReviews": {
+        "description": "The paths a reviewer has looked at and accepted on this extraction.",
+        "properties": {
+          "checked_paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checked Paths",
+            "type": "array"
+          },
+          "extraction_id": {
+            "title": "Extraction Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "extraction_id",
+          "checked_paths"
+        ],
+        "title": "FieldReviews",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2957,6 +2994,205 @@
           }
         },
         "summary": "Decide Extraction",
+        "tags": [
+          "extractions"
+        ]
+      }
+    },
+    "/v1/extractions/{extraction_id}/field-reviews": {
+      "delete": {
+        "description": "Take the mark off again, for a reviewer who wants a second look.",
+        "operationId": "unmark_field_reviewed_v1_extractions__extraction_id__field_reviews_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "extraction_id",
+            "required": true,
+            "schema": {
+              "title": "Extraction Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldReviews"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unmark Field Reviewed",
+        "tags": [
+          "extractions"
+        ]
+      },
+      "get": {
+        "description": "Which fields a reviewer has already been through on this extraction.",
+        "operationId": "list_field_reviews_v1_extractions__extraction_id__field_reviews_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "extraction_id",
+            "required": true,
+            "schema": {
+              "title": "Extraction Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldReviews"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Field Reviews",
+        "tags": [
+          "extractions"
+        ]
+      },
+      "post": {
+        "description": "Record that a person has checked one field. Marking twice is harmless.",
+        "operationId": "mark_field_reviewed_v1_extractions__extraction_id__field_reviews_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "extraction_id",
+            "required": true,
+            "schema": {
+              "title": "Extraction Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldReviews"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Field Reviewed",
         "tags": [
           "extractions"
         ]
