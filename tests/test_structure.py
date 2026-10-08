@@ -187,7 +187,7 @@ def test_the_contract_covers_every_published_route() -> None:
 
     from fdip.api.app import openapi_document
 
-    path = ROOT / "API_CONTRACT_FOR_UI.md"
+    path = ROOT / "docs" / "API_CONTRACT_FOR_UI.md"
     assert path.is_file(), "API_CONTRACT_FOR_UI.md is missing"
 
     def shape(route: str) -> str:
@@ -248,7 +248,7 @@ def test_the_contract_states_the_two_ui_renderings() -> None:
     wrong: a scan rendered as an error alarms the user over normal behaviour, and an
     absent field rendered as `0` is a fabricated number on a financial document.
     """
-    text = (ROOT / "API_CONTRACT_FOR_UI.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs" / "API_CONTRACT_FOR_UI.md").read_text(encoding="utf-8")
     for needle in (
         "scanned_document_review",
         "Scanned documents are reviewed by a person before acceptance",

@@ -1,6 +1,6 @@
 # UX audit — Marinnex Lab
 
-Phase A of `fdip/docs/MARINNEX_UX_MASTER_PROMPT.md`. No product code changed.
+Phase A of `fdip/docs/prompts/MARINNEX_UX_MASTER_PROMPT.md`. No product code changed.
 Observed in a browser (mock mode) and read from source and `openapi.json`.
 Before screenshots: `web/audit/before/` at 1440 and 390, light theme.
 
@@ -25,7 +25,7 @@ Verified working end to end against the real backend.
 | 4 | First-time | No homepage, welcome, tour, sample or onboarding. A new account lands on an empty table. Part 5's four questions: 1 of 4 answered | P0 |
 | 5 | First-time | "FDIP" appears in UI copy; the public brand must be Marinnex Lab | P0 |
 | 6 | Usability | Upload zone dominates even with 50 documents | P2 |
-| 7 | Usability | No document search (no backend endpoint — `BACKEND_REQUESTS.md` §5) | P2 |
+| 7 | Usability | No document search (no backend endpoint — `docs/BACKEND_REQUESTS.md` §5) | P2 |
 | 8 | Usability | "Processing" is one word, not a staged story | P1 |
 | 9 | Usability | Reasons listed flat; nothing says which matters, and no "review next" | P1 |
 | 10 | Usability | Row selection counts but does nothing | P2 |
