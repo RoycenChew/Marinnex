@@ -153,6 +153,19 @@ and are audit events holding the path, never the value.
 | `DELETE /schemas/{id}` | archive: hidden from `GET /schemas`, closed to new work, reversible |
 | `DELETE /schemas/{id}?purge=true` | destroy it; `409 schema_in_use` with a `references` count while any extraction, job or live key points at it |
 | `POST /schemas/{id}/restore` | unarchive; find archived ones with `GET /schemas?include_archived=true` |
+| `PATCH /schemas/{id}/versions/{v}` | edit a **draft** version's `field_config`/`custom_fields`; `409 schema_version_frozen` once a test run passed or a live key is pinned to it |
+
+**Custom schemas.** A version may carry `field_config` (per path: `alias`, `order`,
+`required`, `date_format`, `number_format`) and up to 10 `custom_fields`
+(`{name, kind: text|number|money|date, description, hints[], required}`).
+`/v1/extract` and `GET /extractions/{id}` are keyed by **alias**; the reviewer
+surface `GET /documents/{id}/analysis` keeps real paths and adds `alias` and
+`custom` to each entry, because corrections post back by path. The two formats
+are display-only — exports and the screen honour them, the API never does, so
+money stays a decimal string and dates stay ISO. A custom field is grounded like
+any other and can never be `derived`. Test runs report `fields: {path: found |
+not_found}` per document, and a version with custom fields is extracted for real
+rather than scored against the template analysis.
 | `GET /schemas/{id}/versions/{v}/contract` | the JSON Schema of the extraction response — give this to API customers |
 | `POST /schemas/{id}/versions/{v}/test-runs` | `{document_ids:[3..5]}`; **required** before a key may use the version |
 | `GET /test-runs/{id}` | `{status, per_document, passed}` |

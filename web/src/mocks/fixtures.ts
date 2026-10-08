@@ -99,6 +99,7 @@ function entry(spec: Spec): FieldEntry {
         : 'accepted',
     match: spec.match,
     evidence: evidence(spec),
+    custom: false,
     reasons: spec.reasons ?? [],
   }
 }

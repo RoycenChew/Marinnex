@@ -16,6 +16,8 @@ import-graph test enforces that.
 """
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -28,8 +30,36 @@ from fdip.domain.templates import (
     TemplateField,
     flatten,
 )
+from fdip.domain.user_text import (
+    CUSTOM_BLOCK_LIMIT,
+    CUSTOM_FIELD_PREAMBLE,
+    DESCRIPTION_LIMIT,
+    HINT_LIMIT,
+    MAX_CUSTOM_FIELDS,
+    MAX_HINTS,
+    block_size,
+    describe_custom_field,
+    sanitise,
+)
 
 DateOrder = Literal["DMY", "MDY", "YMD"]
+
+#: A snake_case identifier: what an output key and a custom field name may be.
+#: Enforced in both directions, because this is what a customer's code indexes.
+_NAME = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
+CustomKind = Literal["text", "number", "money", "date"]
+
+#: The four user-facing types, and what each compiles to. `money` is a decimal
+#: like any other amount: the currency comes from the document's own currency
+#: field, because a document has one currency and a second place to state it is
+#: a second place for it to be wrong.
+_CUSTOM_KINDS: dict[str, str] = {
+    "text": "string",
+    "number": "decimal",
+    "money": "decimal",
+    "date": "date",
+}
 
 _TOOLKIT_TYPES: dict[str, FieldType] = {
     "string": FieldType.STRING,
@@ -61,6 +91,84 @@ class LocaleHints:
 
 
 @dataclass(frozen=True)
+class FieldConfig:
+    """How one selected field is presented. Level 1.
+
+    None of this changes what is extracted or how a value is judged. `alias` is
+    the key the customer receives; `order` sorts the output; `required`
+    overrides the template's default for the decision rule. The two formats are
+    **display only** — they reach CSV, Excel and the screen, never the API,
+    which stays ISO dates and decimal strings so an integrator can parse what
+    arrives without knowing a locale.
+    """
+
+    alias: str | None = None
+    order: int | None = None
+    required: bool | None = None
+    date_format: str | None = None
+    number_format: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {k: v for k, v in {
+            "alias": self.alias, "order": self.order, "required": self.required,
+            "date_format": self.date_format, "number_format": self.number_format,
+        }.items() if v is not None}
+
+
+@dataclass(frozen=True)
+class CustomField:
+    """A field the template does not have. Level 2.
+
+    It is sent to the existing extract task as one more field with a
+    description — there is no second AI call and no new kind of task. It is
+    grounded like any other scalar, and it can never be `derived`: derivation is
+    a deterministic claim, and there is no arithmetic behind a field this system
+    has never seen.
+    """
+
+    name: str
+    kind: CustomKind
+    description: str
+    hints: tuple[str, ...] = ()
+    required: bool = False
+
+    def __post_init__(self) -> None:
+        if "[]" in self.name or "." in self.name:
+            raise ValueError(
+                "custom line-item columns are coming later; a custom field is "
+                "a header-level value for now"
+            )
+        if not _NAME.match(self.name):
+            raise ValueError(
+                "a custom field name must be snake_case, start with a letter "
+                "and be at most 64 characters: %r" % self.name
+            )
+        if self.kind not in _CUSTOM_KINDS:
+            raise ValueError("unknown custom field type: %r" % self.kind)
+        if not sanitise(self.description, DESCRIPTION_LIMIT):
+            raise ValueError(
+                "a custom field needs a description, or the model has nothing "
+                "to go on"
+            )
+        if len(self.hints) > MAX_HINTS:
+            raise ValueError("at most %d label hints" % MAX_HINTS)
+
+    @property
+    def rendered_description(self) -> str:
+        """The description as it reaches the prompt: sanitised and delimited."""
+        return describe_custom_field(self.description, self.hints)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "kind": self.kind,
+            "description": sanitise(self.description, DESCRIPTION_LIMIT),
+            "hints": [sanitise(h, HINT_LIMIT) for h in self.hints[:MAX_HINTS]],
+            "required": self.required,
+        }
+
+
+@dataclass(frozen=True)
 class SchemaSpec:
     """A chosen subset of a template, plus how to read its dates."""
 
@@ -70,6 +178,8 @@ class SchemaSpec:
     locale_hints: LocaleHints = field(default_factory=LocaleHints)
     template_fields: tuple[TemplateField, ...] = INVOICE_TEMPLATE_FIELDS
     description: str = INVOICE_DESCRIPTION
+    field_config: Mapping[str, FieldConfig] = field(default_factory=dict)
+    custom_fields: tuple[CustomField, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.fields:
@@ -80,6 +190,80 @@ class SchemaSpec:
             raise ValueError(
                 "not fields of this template: " + ", ".join(sorted(unknown))
             )
+        self._validate_custom_fields(known)
+        self._validate_aliases(known)
+
+    def _validate_custom_fields(self, known: set[str]) -> None:
+        if len(self.custom_fields) > MAX_CUSTOM_FIELDS:
+            raise ValueError(
+                "at most %d custom fields per version" % MAX_CUSTOM_FIELDS
+            )
+        seen: set[str] = set()
+        for custom in self.custom_fields:
+            if custom.name in known:
+                raise ValueError(
+                    "custom field name %r is already a field of this template"
+                    % custom.name
+                )
+            if custom.name in seen:
+                raise ValueError("duplicate custom field name %r" % custom.name)
+            seen.add(custom.name)
+        # The whole block has a ceiling: ten verbose fields would otherwise add
+        # thousands of characters to every document processed against this
+        # schema, and the customer would see it only on the bill.
+        size = block_size([c.rendered_description for c in self.custom_fields])
+        if self.custom_fields and size > CUSTOM_BLOCK_LIMIT:
+            raise ValueError(
+                "the custom field descriptions are too long together: %d "
+                "characters, limit %d" % (size, CUSTOM_BLOCK_LIMIT)
+            )
+
+    def _validate_aliases(self, known: set[str]) -> None:
+        """An alias is what a customer's code indexes, so a collision is not a
+        cosmetic problem: one of the two fields would simply disappear."""
+        custom_names = {c.name for c in self.custom_fields}
+        output_keys: dict[str, str] = {}
+        for path in [*self.fields, *custom_names]:
+            output_keys[self.output_key(path)] = path
+
+        for path, config in self.field_config.items():
+            if config.alias is None:
+                continue
+            if not _NAME.match(config.alias):
+                raise ValueError(
+                    "an alias must be snake_case, start with a letter and be "
+                    "at most 64 characters: %r" % config.alias
+                )
+            # Taking the name of a different field, template or custom, is the
+            # collision that loses data.
+            if config.alias in known and config.alias != path:
+                raise ValueError(
+                    "alias %r is the name of another template field"
+                    % config.alias
+                )
+
+        aliases = [c.alias for c in self.field_config.values() if c.alias]
+        if len(aliases) != len(set(aliases)):
+            raise ValueError("two fields share one alias")
+        if len(output_keys) != len(self.fields) + len(custom_names):
+            raise ValueError("an alias collides with another output key")
+
+    def output_key(self, path: str) -> str:
+        """The key this field arrives under. The path is what everything
+        internal keys on; this is only ever applied on the way out."""
+        config = self.field_config.get(path)
+        return config.alias if config and config.alias else path
+
+    @property
+    def custom_names(self) -> frozenset[str]:
+        return frozenset(c.name for c in self.custom_fields)
+
+    def _order_of(self, path: str) -> tuple[int, int]:
+        """Explicit order first, then the template's own order."""
+        config = self.field_config.get(path)
+        if config and config.order is not None:
+            return (0, config.order)
+        return (1, 0)
 
     @property
     def selected(self) -> list[TemplateField]:
@@ -111,8 +295,14 @@ class SchemaSpec:
         for spec in self.selected:
             if spec.is_array:
                 continue
-            if spec.required_default:
+            config = self.field_config.get(spec.path)
+            required = (config.required if config and config.required is not None
+                        else spec.required_default)
+            if required:
                 out.append(spec.path)
+        # A required custom field is judged exactly like a template one: not
+        # found on the page means the document waits for a person.
+        out.extend(c.name for c in self.custom_fields if c.required)
         return tuple(out)
 
 
@@ -129,7 +319,12 @@ def _to_field_spec(spec: TemplateField, children: list[FieldSpec]) -> FieldSpec:
 
 
 def to_extraction_schema(spec: SchemaSpec) -> ExtractionSchema:
-    """Compile to what the model is asked for."""
+    """Compile to what the model is asked for.
+
+    Aliases are deliberately absent here. The model is asked for the real field
+    names, and renaming happens on the way out, so two schemas differing only by
+    alias produce the same prompt — and the same cache entry.
+    """
     fields: list[FieldSpec] = []
     for template_field in spec.selected:
         children = (
@@ -137,9 +332,22 @@ def to_extraction_schema(spec: SchemaSpec) -> ExtractionSchema:
             if template_field.is_array else []
         )
         fields.append(_to_field_spec(template_field, children))
+
+    for custom in spec.custom_fields:
+        fields.append(FieldSpec(
+            name=custom.name,
+            type=_TOOLKIT_TYPES[_CUSTOM_KINDS[custom.kind]],
+            description=custom.rendered_description,
+            required=custom.required,
+        ))
+
+    description = spec.description
+    if spec.custom_fields:
+        description = description + chr(10) * 2 + CUSTOM_FIELD_PREAMBLE
+
     return ExtractionSchema(
         name=spec.name or "Document",
-        description=spec.description,
+        description=description,
         fields=fields,
     )
 
@@ -207,6 +415,29 @@ def _scalar_property(spec: TemplateField) -> dict:
     return node
 
 
+def _custom_property(custom: CustomField) -> dict[str, Any]:
+    """A custom field's node in the published contract.
+
+    `money` is a decimal string with no currency of its own: the document's
+    `currency` field is the one answer, and a second one is a second thing to
+    disagree about.
+    """
+    kind = _CUSTOM_KINDS[custom.kind]
+    node: dict[str, Any] = {
+        "type": [_JSON_TYPES[kind], "null"],
+        "description": sanitise(custom.description, DESCRIPTION_LIMIT),
+        "x-custom": True,
+    }
+    if custom.kind == "date":
+        node["format"] = "date"
+        node["description"] += " ISO 8601, YYYY-MM-DD."
+    if custom.kind in ("money", "number"):
+        node["description"] += " A decimal as a string, never a JSON number."
+    if custom.kind == "money":
+        node["description"] += " In the document's own currency."
+    return node
+
+
 def to_response_contract(spec: SchemaSpec, version: int) -> dict[str, Any]:
     """The published JSON Schema of `GET /extractions/{id}`.
 
@@ -216,8 +447,24 @@ def to_response_contract(spec: SchemaSpec, version: int) -> dict[str, Any]:
     """
     data_properties: dict[str, Any] = {}
     field_paths: list[str] = []
+
+    # Output order: anything the user placed explicitly, then the template's own
+    # order, then custom fields. Sorting here rather than at render time means
+    # the published contract and the response cannot disagree about it.
+    ordered: list[tuple[tuple[int, int], str, Any]] = []
     for template_field in spec.selected:
-        key = template_field.path
+        ordered.append((spec._order_of(template_field.path), "t", template_field))
+    for custom in spec.custom_fields:
+        ordered.append((spec._order_of(custom.name), "c", custom))
+    ordered.sort(key=lambda item: item[0])
+
+    for _rank, kind, entry in ordered:
+        if kind == "c":
+            data_properties[spec.output_key(entry.name)] = _custom_property(entry)
+            field_paths.append(spec.output_key(entry.name))
+            continue
+        template_field = entry
+        key = spec.output_key(template_field.path)
         children = spec.selected_children(template_field)
         data_properties[key] = _data_property(template_field, children)
         if template_field.is_array:
@@ -230,6 +477,10 @@ def to_response_contract(spec: SchemaSpec, version: int) -> dict[str, Any]:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "%s extraction, version %d" % (spec.name, version),
+        # Named so an integrator can tell at a glance which keys came from a
+        # template this system validates, and which the customer defined. A
+        # custom field is grounded but has no arithmetic behind it.
+        "x-custom-fields": [spec.output_key(c.name) for c in spec.custom_fields],
         "description": (
             "The response of GET /v1/extractions/{id} for this schema version. "
             "Money and other decimals are strings. Every field in `fields` is "

@@ -125,7 +125,9 @@ def get_extraction(
     extraction = repo.extraction(extraction_id)
     if extraction is None:
         raise problems.not_found("extraction")
-    return views.extraction_view(repo, extraction)
+    aliases, custom = views.presentation_for(repo, extraction)
+    return views.extraction_view(repo, extraction, aliases=aliases,
+                                 custom_names=custom)
 
 
 @router.get("/documents/{document_id}/extractions", response_model=list[Extraction])

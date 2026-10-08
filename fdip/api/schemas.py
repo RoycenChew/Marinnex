@@ -130,6 +130,13 @@ class FieldEntry(BaseModel):
     match: str
     evidence: list[EvidenceView]
     reasons: list[str]
+    #: Reviewer surface only. The integrator surface re-keys by the alias
+    #: instead; here the path stays the key, because corrections post back by
+    #: path, and this is the label to show beside it.
+    alias: str | None = None
+    #: True for a field the customer defined. It is grounded like any other, but
+    #: no validator checks that the value means what they intended.
+    custom: bool = False
 
 
 class ValidationView(BaseModel):
@@ -208,12 +215,23 @@ class Template(BaseModel):
     fields: list[TemplateField]
 
 
+class CustomFieldView(BaseModel):
+    name: str
+    kind: Literal["text", "number", "money", "date"]
+    description: str
+    hints: list[str] = Field(default_factory=list)
+    required: bool = False
+
+
 class SchemaVersionView(BaseModel):
     version: int
     created_at: datetime | None = None
     test_run_status: str
     fields: list[str]
     locale_hints: dict[str, str]
+    #: Presentation per path: alias, order, required, display formats.
+    field_config: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    custom_fields: list[CustomFieldView] = Field(default_factory=list)
 
 
 class SchemaView(BaseModel):
@@ -238,6 +256,24 @@ class TestRunDocument(BaseModel):
     status: str
     fields_ok: int
     fields_total: int
+    #: Per required field and per custom field: "found" or "not_found". A
+    #: customer who defines a field needs to see whether it was actually there
+    #: on their own documents before they build on it.
+    fields: dict[str, str] = Field(default_factory=dict)
+
+
+class TestRunProblem(BaseModel):
+    """One required field that was not found, and what to do about it.
+
+    A failed run that only says "did not pass" leaves a customer guessing. There
+    are exactly two things they can do — pick documents that contain the field,
+    or make it optional — so the message says both.
+    """
+
+    path: str
+    missing_from: int
+    documents: int
+    message: str
 
 
 class TestRun(BaseModel):
@@ -247,6 +283,8 @@ class TestRun(BaseModel):
     status: str
     passed: bool
     per_document: list[TestRunDocument]
+    #: Empty when the run passed: there is nothing to act on.
+    problems: list[TestRunProblem] = Field(default_factory=list)
     created_at: datetime | None = None
     finished_at: datetime | None = None
 

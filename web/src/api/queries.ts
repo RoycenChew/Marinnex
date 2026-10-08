@@ -15,6 +15,8 @@ import { API_ORIGIN, apiClient } from './client'
 import type {
   ApiKey,
   CreatedApiKey,
+  CustomFieldInput,
+  FieldConfigInput,
   DocumentDetail,
   DocumentList,
   ExportJob,
@@ -223,6 +225,8 @@ export async function createSchema(
     name: string
     fields: string[]
     locale_hints: { date_order: string }
+    field_config?: Record<string, FieldConfigInput>
+    custom_fields?: CustomFieldInput[]
   },
   projectId: string | null,
 ): Promise<SchemaCreated> {
@@ -265,9 +269,45 @@ export async function restoreSchema(schemaId: string, projectId: string | null) 
   return unwrap(data, error)
 }
 
+
+
+/**
+ * Edit a **draft** version in place.
+ *
+ * Refused with `409 schema_version_frozen` once a test run has passed or a live
+ * key is pinned to the version, because the key names it publishes may already
+ * be in someone's integration. The UI surfaces that refusal as-is.
+ */
+export async function patchSchemaVersion(
+  schemaId: string,
+  version: number,
+  body: {
+    field_config?: Record<string, FieldConfigInput>
+    custom_fields?: CustomFieldInput[]
+  },
+  projectId: string | null,
+) {
+  const { data, error } = await apiClient.PATCH(
+    '/v1/schemas/{schema_id}/versions/{version}',
+    {
+      params: {
+        path: { schema_id: schemaId, version },
+        query: { project_id: project(projectId) },
+      },
+      body,
+    },
+  )
+  return unwrap(data, error)
+}
+
 export async function addSchemaVersion(
   schemaId: string,
-  body: { fields: string[]; locale_hints: { date_order: string } },
+  body: {
+    fields: string[]
+    locale_hints: { date_order: string }
+    field_config?: Record<string, FieldConfigInput>
+    custom_fields?: CustomFieldInput[]
+  },
   projectId: string | null,
 ): Promise<SchemaCreated> {
   const { data, error } = await apiClient.POST('/v1/schemas/{schema_id}/versions', {

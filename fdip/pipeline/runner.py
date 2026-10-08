@@ -38,7 +38,12 @@ from fdip.adapters.providers import ModelStack
 from fdip.adapters.repository import ProjectRepository, now
 from fdip.adapters.sandbox import UnsupportedDocument
 from fdip.config import Settings
-from fdip.domain.schema_lang import LocaleHints, SchemaSpec
+from fdip.domain.schema_lang import (
+    CustomField,
+    FieldConfig,
+    LocaleHints,
+    SchemaSpec,
+)
 from fdip.domain.statuses import POISON_CODES, ErrorCode, JobState, Status
 from fdip.domain.templates import TEMPLATE_VERSION
 from fdip.pipeline import stages
@@ -72,8 +77,18 @@ class JobContext:
 
 
 def run_id_for(document_hash: str, purpose: str,
-               schema_version: int | None = None) -> str:
+               schema_version: int | None = None,
+               schema_id: str | None = None) -> str:
+    """The durable identity of one run.
+
+    The schema id belongs in it. Two schemas are both at version 1 on the day
+    they are created, so without it the second one replays the first one's
+    checkpoints against the same document and never calls the model — which is
+    exactly wrong once schemas can differ in their custom fields.
+    """
     parts = [document_hash[:32], PIPELINE_VERSION, purpose]
+    if schema_id is not None:
+        parts.append(schema_id)
     if schema_version is not None:
         parts.append(str(schema_version))
     return ":".join(parts)
@@ -374,7 +389,8 @@ def run_job(context: JobContext, document_hash: str) -> dict[str, Any]:
     Path(context.settings.checkpoint_path).parent.mkdir(parents=True, exist_ok=True)
     store = SqliteCheckpointStore(str(context.settings.checkpoint_path))
     component = DurableStepsComponent(store=store, owner=context.job_id)
-    run_id = run_id_for(document_hash, context.purpose, context.schema_version)
+    run_id = run_id_for(document_hash, context.purpose,
+                        context.schema_version, context.schema_id)
     try:
         result = component.execute(WorkflowRequest(
             run_id=run_id,
@@ -440,11 +456,31 @@ def spec_from_version(row: Mapping[str, Any]) -> SchemaSpec:
     fields = row["fields"]
     if isinstance(fields, str):
         fields = json.loads(fields)
+
+    def _json(key: str, fallback: Any) -> Any:
+        value = row.get(key) or fallback
+        return json.loads(value) if isinstance(value, str) else value
+
+    config = {
+        path: FieldConfig(**values)
+        for path, values in _json("field_config", {}).items()
+    }
+    custom = tuple(
+        CustomField(
+            name=entry["name"], kind=entry["kind"],
+            description=entry["description"],
+            hints=tuple(entry.get("hints") or ()),
+            required=bool(entry.get("required", False)),
+        )
+        for entry in _json("custom_fields", [])
+    )
     return SchemaSpec(
         name=str(row.get("name") or "Invoice"),
         document_type=str(row.get("document_type") or "invoice"),
         fields=tuple(fields),
         locale_hints=LocaleHints(date_order=hints.get("date_order", "DMY")),
+        field_config=config,
+        custom_fields=custom,
     )
 
 

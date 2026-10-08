@@ -90,7 +90,7 @@ async def extract(
         )
     job_id = repo.create_job(
         document_id=document_id,
-        run_id=run_id_for(digest, "pipeline", schema_version),
+        run_id=run_id_for(digest, "pipeline", schema_version, schema_id),
         state=JobState.RECEIVED.value, mode="pipeline",
         schema_id=schema_id, schema_version=schema_version,
     )
@@ -139,8 +139,12 @@ async def extract(
     extraction = repo.extraction(str(extraction_id))
     if extraction is None:  # pragma: no cover - just written in this transaction
         raise problems.not_found("extraction")
-    return JSONResponse(status_code=200,
-                        content=views.extraction_view(repo, extraction))
+    aliases, custom = views.presentation_for(repo, extraction)
+    return JSONResponse(
+        status_code=200,
+        content=views.extraction_view(repo, extraction, aliases=aliases,
+                                      custom_names=custom),
+    )
 
 
 def _check_quota(repo: ProjectRepository, state: AppState,

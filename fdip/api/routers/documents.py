@@ -255,7 +255,9 @@ def analysis(
             "suggested_fields": [],
             "detail": "the analysis has not finished; poll this endpoint",
         }
-    return views.extraction_view(repo, extraction, include_suggested=True)
+    labels, custom = views.presentation_for(repo, extraction)
+    return views.extraction_view(repo, extraction, include_suggested=True,
+                                 labels=labels, custom_names=custom)
 
 
 @router.delete("/documents/{document_id}", status_code=204)

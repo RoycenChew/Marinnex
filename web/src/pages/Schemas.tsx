@@ -20,12 +20,20 @@ import {
   listTemplates,
   restoreSchema,
 } from '../api/queries'
-import type { SchemaSummary, TemplateField } from '../api/types'
+import type {
+  CustomFieldInput,
+  FieldConfigInput,
+  SchemaSummary,
+  TemplateField,
+} from '../api/types'
 import { useAuth } from '../context/AuthContext'
 import { Page } from '../components/layout/AppLayout'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { ArrangerHeader, FieldArranger } from '../components/schema/FieldArranger'
+import type { ArrangedField } from '../components/schema/FieldArranger'
+import { CustomFieldPanel } from '../components/schema/CustomFieldPanel'
 import {
   EmptyState,
   TBody,
@@ -275,7 +283,13 @@ export function SchemaBuilder({
    * The same picker does both — starting from the current version's fields
    * rather than an empty list, since an edit is usually a small change.
    */
-  existing?: { schemaId: string; fields: string[]; dateOrder: string }
+  existing?: {
+    schemaId: string
+    fields: string[]
+    dateOrder: string
+    fieldConfig?: Record<string, FieldConfigInput>
+    customFields?: CustomFieldInput[]
+  }
 }) {
   const { activeProjectId } = useAuth()
   const queryClient = useQueryClient()
@@ -284,6 +298,12 @@ export function SchemaBuilder({
   const [search, setSearch] = useState('')
   const [picked, setPicked] = useState<Set<string>>(
     new Set(existing?.fields ?? suggested),
+  )
+  const [fieldConfig, setFieldConfig] = useState<Record<string, FieldConfigInput>>(
+    existing?.fieldConfig ?? {},
+  )
+  const [customFields, setCustomFields] = useState<CustomFieldInput[]>(
+    existing?.customFields ?? [],
   )
 
   const templatesQuery = useQuery({
@@ -310,6 +330,28 @@ export function SchemaBuilder({
     ].filter((g) => g.fields.length > 0)
   }, [template, search])
 
+  /* The selected fields in the order they will arrive: explicit order first,
+     then template order. Mirrors `SchemaSpec._order_of` so what is shown here
+     is what the contract will say. */
+  const arranged = useMemo<ArrangedField[]>(() => {
+    const all: TemplateField[] = template?.fields ?? []
+    const rows = all
+      .filter((f) => picked.has(f.path) && !f.path.includes('[]'))
+      .map((f) => ({
+        path: f.path,
+        label: f.label,
+        requiredDefault: !!f.required_default,
+      }))
+    return rows.sort((a, b) => {
+      const left = fieldConfig[a.path]?.order
+      const right = fieldConfig[b.path]?.order
+      if (left == null && right == null) return 0
+      if (left == null) return 1
+      if (right == null) return -1
+      return left - right
+    })
+  }, [template, picked, fieldConfig])
+
   const createMutation = useMutation({
     mutationFn: () =>
       existing
@@ -318,6 +360,8 @@ export function SchemaBuilder({
             {
               fields: [...picked],
               locale_hints: { date_order: dateOrder },
+              field_config: fieldConfig,
+              custom_fields: customFields,
             },
             activeProjectId,
           )
@@ -327,6 +371,8 @@ export function SchemaBuilder({
               name: name.trim(),
               fields: [...picked],
               locale_hints: { date_order: dateOrder },
+              field_config: fieldConfig,
+              custom_fields: customFields,
             },
             activeProjectId,
           ),
@@ -470,6 +516,19 @@ export function SchemaBuilder({
             </ul>
           </section>
         ))}
+      </div>
+
+      <div className="border-t">
+        <ArrangerHeader />
+        <FieldArranger
+          fields={arranged}
+          config={fieldConfig}
+          onChange={setFieldConfig}
+        />
+      </div>
+
+      <div className="border-t">
+        <CustomFieldPanel fields={customFields} onChange={setCustomFields} />
       </div>
 
       <div className="flex items-center justify-end gap-2 border-t px-4 py-3">

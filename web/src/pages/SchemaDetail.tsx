@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, Copy, FlaskConical, Pencil, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Copy,
+  FlaskConical,
+  Pencil,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import {
   createTestRun,
@@ -123,6 +131,8 @@ export default function SchemaDetail() {
               dateOrder:
                 (activeVersion.locale_hints as { date_order?: string } | null)
                   ?.date_order ?? 'DMY',
+              fieldConfig: activeVersion.field_config ?? {},
+              customFields: activeVersion.custom_fields ?? [],
             }}
           />
         </div>
@@ -240,22 +250,71 @@ export default function SchemaDetail() {
                     {testRunMutation.data.passed ? 'Passed' : 'Did not pass'}
                   </span>
                 </div>
-                <ul className="flex flex-col gap-1">
-                  {testRunMutation.data.per_document.map((row) => (
-                    <li
-                      key={row.document_id}
-                      className="flex items-center justify-between gap-2 text-xs"
-                    >
-                      <span className="truncate text-[var(--text-secondary)]">
-                        {documents.find((d) => d.id === row.document_id)?.filename ??
-                          row.document_id}
-                      </span>
-                      <span className="tabular shrink-0 text-[var(--text-tertiary)]">
-                        {row.fields_ok}/{row.fields_total} fields
-                      </span>
-                    </li>
-                  ))}
+                {/* A failed run has to be actionable. The backend names each
+                    missing required field and the two things that fix it. */}
+                {(testRunMutation.data.problems ?? []).length > 0 && (
+                  <ul className="mb-3 flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-warning-50)] p-3 dark:bg-[var(--color-warning-500)]/10">
+                    {testRunMutation.data.problems?.map((problem) => (
+                      <li
+                        key={problem.path}
+                        className="flex items-start gap-2 text-xs leading-relaxed text-[var(--color-warning-700)] dark:text-[var(--color-warning-500)]"
+                      >
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        {problem.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <ul className="flex flex-col gap-2">
+                  {testRunMutation.data.per_document.map((row) => {
+                    const custom = (activeVersion?.custom_fields ?? []).map(
+                      (f) => f.name,
+                    )
+                    return (
+                      <li key={row.document_id} className="text-xs">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate text-[var(--text-secondary)]">
+                            {documents.find((d) => d.id === row.document_id)
+                              ?.filename ?? row.document_id}
+                          </span>
+                          <span className="tabular shrink-0 text-[var(--text-tertiary)]">
+                            {row.fields_ok}/{row.fields_total} fields
+                          </span>
+                        </span>
+                        {/* Your own fields, named and answered one by one. The
+                            whole point of testing a custom field is seeing
+                            whether it was actually there. */}
+                        {custom.length > 0 && (
+                          <span className="mt-1 flex flex-wrap gap-1">
+                            {custom.map((name) => (
+                              <Badge
+                                key={name}
+                                tone={
+                                  row.fields?.[name] === 'found'
+                                    ? 'success'
+                                    : 'warning'
+                                }
+                              >
+                                {name}:{' '}
+                                {row.fields?.[name] === 'found'
+                                  ? 'found'
+                                  : 'not found'}
+                              </Badge>
+                            ))}
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
+                {(activeVersion?.custom_fields ?? []).length > 0 && (
+                  <p className="mt-2 text-xs text-[var(--text-tertiary)]">
+                    Your own fields are found on the page like any other, but no
+                    validator checks they mean what you intended. Open a document
+                    and verify the values before you rely on them.
+                  </p>
+                )}
               </div>
             )}
           </Card>
