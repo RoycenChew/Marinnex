@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Marinnex Lab — Document Intelligence Flow</title>
+<style>
+:root {
+  --brand: #08627a;
+  --brand-dark: #06485a;
+  --ink: #18343d;
+  --muted: #6d8086;
+  --surface: #ffffff;
+  --soft: #f4f8f9;
+  --line: #d9e5e8;
+  --success: #27865a;
+  --warning: #b57920;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #fbfdfd, #eef5f6);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.demo {
+  width: min(1120px, 94vw);
+  padding: 40px 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.brand img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+.brand strong {
+  font-family: Georgia, serif;
+  font-size: 25px;
+  color: var(--brand);
+}
+h1 {
+  max-width: 760px;
+  font-family: Georgia, serif;
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: 1.02;
+  margin: 0 0 14px;
+}
+.lead {
+  max-width: 650px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.65;
+  margin-bottom: 34px;
+}
+.flow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: stretch;
+}
+.panel {
+  position: relative;
+  background: rgba(255,255,255,.9);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: 0 18px 50px rgba(24,52,61,.08);
+  overflow: hidden;
+}
+.panel-title {
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.document {
+  min-height: 330px;
+  background: white;
+  border: 1px solid #d8dfe1;
+  padding: 28px;
+  position: relative;
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.05);
+}
+.doc-head {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #e8edef;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+.doc-company { font-weight: 700; }
+.doc-number { color: var(--muted); font-size: 12px; }
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid #f0f2f3;
+  font-size: 14px;
+}
+.scan {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background: var(--brand);
+  box-shadow: 0 0 16px rgba(8,98,122,.45);
+  top: 0;
+  opacity: 0;
+  animation: scan 5.5s infinite;
+}
+@keyframes scan {
+  0%, 10% { top: 0; opacity: 0; }
+  15% { opacity: 1; }
+  70% { top: 94%; opacity: 1; }
+  80%, 100% { top: 94%; opacity: 0; }
+}
+.fields { display: grid; gap: 10px; }
+.field {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 13px 15px;
+  background: #fff;
+  animation: appear 5.5s infinite;
+}
+.field:nth-child(1) { animation-delay: .5s; }
+.field:nth-child(2) { animation-delay: .75s; }
+.field:nth-child(3) { animation-delay: 1s; }
+.field:nth-child(4) { animation-delay: 1.25s; }
+.field:nth-child(5) { animation-delay: 1.5s; }
+@keyframes appear {
+  0%, 12% { opacity: .2; transform: translateY(7px); }
+  25%, 85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: .2; transform: translateY(0); }
+}
+.field-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.field-name { color: var(--muted); font-size: 12px; }
+.value { font-weight: 650; margin-top: 4px; }
+.badge {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: #edf7f1;
+  color: var(--success);
+}
+.badge.warning {
+  background: #fff5e5;
+  color: var(--warning);
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse {
+  50% { transform: scale(1.7); opacity: .45; }
+}
+.json {
+  margin-top: 16px;
+  background: #102d35;
+  color: #eaf6f7;
+  border-radius: 14px;
+  padding: 17px;
+  font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
+  animation: jsonIn 5.5s infinite;
+}
+@keyframes jsonIn {
+  0%, 35% { opacity: 0; transform: translateY(8px); }
+  48%, 86% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+@media (max-width: 760px) {
+  .flow { grid-template-columns: 1fr; }
+  .demo { padding: 28px 0; }
+  .panel { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+</style>
+</head>
+<body>
+<main class="demo">
+  <div class="brand">
+    <img src="../assets/marinnex-lab-logo.png" alt="Marinnex Lab" />
+    <strong>Marinnex Lab</strong>
+  </div>
+
+  <h1>Turn financial documents into usable data.</h1>
+  <p class="lead">
+    Upload a document, let AI extract the information, review what matters,
+    and turn the result into structured data.
+  </p>
+
+  <section class="flow" aria-label="Document processing demonstration">
+    <article class="panel">
+      <div class="panel-title">01 · Financial document</div>
+      <div class="document">
+        <div class="scan"></div>
+        <div class="doc-head">
+          <div class="doc-company">ABC SDN BHD</div>
+          <div class="doc-number">INVOICE</div>
+        </div>
+        <div class="row"><span>Invoice No.</span><strong>INV-2026-001</strong></div>
+        <div class="row"><span>Date</span><strong>06/10/2026</strong></div>
+        <div class="row"><span>Subtotal</span><strong>RM 10,000</strong></div>
+        <div class="row"><span>Tax</span><strong>RM 600</strong></div>
+        <div class="row"><span>Total</span><strong>RM 10,600</strong></div>
+      </div>
+      <div class="status"><span class="dot"></span> Reading and understanding the document...</div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-title">02 · Extracted information</div>
+      <div class="fields">
+        <div class="field">
+          <div class="field-top"><div><div class="field-name">Invoice Number</div><div class="value">INV-2026-001</div></div><span class="badge">96%</span></div>
+        </div>
+        <div class="field">
+          <div class="field-top"><div><div class="field-name">Vendor</div><div class="value">ABC Sdn Bhd</div></div><span class="badge">98%</span></div>
+        </div>
+        <div class="field">
+          <div class="field-top"><div><div class="field-name">Date</div><div class="value">06/10/2026</div></div><span class="badge">97%</span></div>
+        </div>
+        <div class="field">
+          <div class="field-top"><div><div class="field-name">Tax</div><div class="value">RM 600</div></div><span class="badge warning">68% · Review</span></div>
+        </div>
+        <div class="field">
+          <div class="field-top"><div><div class="field-name">Total</div><div class="value">RM 10,600</div></div><span class="badge">99%</span></div>
+        </div>
+      </div>
+
+      <div class="json">
+        {<br>
+        &nbsp;&nbsp;"invoice_number": "INV-2026-001",<br>
+        &nbsp;&nbsp;"vendor": "ABC Sdn Bhd",<br>
+        &nbsp;&nbsp;"total": 10600.00<br>
+        }
+      </div>
+    </article>
+  </section>
+</main>
+</body>
+</html>
