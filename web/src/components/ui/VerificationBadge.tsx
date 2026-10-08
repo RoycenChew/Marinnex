@@ -74,15 +74,6 @@ export function VerificationBadge({
   )
 }
 
-/** The plain-English meaning, for a hint or a legend. */
-export function verificationMeaning(match: string | null | undefined): string {
-  return VERIFICATION[keyOf(match)].meaning
-}
-
-export function verificationLabel(match: string | null | undefined): string {
-  return VERIFICATION[keyOf(match)].label
-}
-
 /**
  * A "?" that explains one term. Used beside anything a first-time user would not
  * be expected to know — confidence, schema, API key.

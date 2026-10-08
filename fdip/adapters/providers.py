@@ -126,11 +126,6 @@ class ModelStack:
     def thinking(self) -> str:
         return str(getattr(self.llm, "mode", "") or "")
 
-    @property
-    def spent_usd(self) -> float:
-        state = getattr(self.llm, "state", None)
-        return float(getattr(state, "cost_usd", 0.0) or 0.0)
-
 
 def _deepseek_prices() -> Any:
     """DeepSeek's prices, read 2026-10-07, priced at **peak**.

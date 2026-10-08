@@ -104,8 +104,3 @@ export function StatCard({
     </div>
   )
 }
-
-/** A horizontal rule that matches the token border, for use inside a Card. */
-export function Divider({ className }: { className?: string }) {
-  return <div className={cn('-mx-4 my-3 border-t', className)} />
-}

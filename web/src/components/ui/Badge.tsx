@@ -53,14 +53,3 @@ export function Badge({
     </span>
   )
 }
-
-/** A small square of the match-class colour, used beside evidence boxes. */
-export function Swatch({ color, className }: { color: string; className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={cn('h-2 w-2 shrink-0 rounded-[2px]', className)}
-      style={{ backgroundColor: color }}
-    />
-  )
-}

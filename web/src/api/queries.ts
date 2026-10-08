@@ -277,6 +277,9 @@ export async function restoreSchema(schemaId: string, projectId: string | null) 
  * Refused with `409 schema_version_frozen` once a test run has passed or a live
  * key is pinned to the version, because the key names it publishes may already
  * be in someone's integration. The UI surfaces that refusal as-is.
+ *
+ * No screen calls this yet — kept deliberately, because the endpoint is live and
+ * tested and the schema builder is the obvious next caller for draft editing.
  */
 export async function patchSchemaVersion(
   schemaId: string,
@@ -354,16 +357,6 @@ export async function createTestRun(
       body: { document_ids: documentIds },
     },
   )
-  return unwrap(data, error)
-}
-
-export async function getTestRun(
-  runId: string,
-  projectId: string | null,
-): Promise<TestRun> {
-  const { data, error } = await apiClient.GET('/v1/test-runs/{run_id}', {
-    params: { path: { run_id: runId }, query: { project_id: project(projectId) } },
-  })
   return unwrap(data, error)
 }
 
