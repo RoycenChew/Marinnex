@@ -38,6 +38,7 @@ import {
   problemMessage,
   statusMeta,
 } from '../lib/status'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import { cn } from '../lib/utils'
 
 export default function DocumentAnalysis() {
@@ -53,6 +54,14 @@ export default function DocumentAnalysis() {
   const [rejecting, setRejecting] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
+  /* A reviewer's own checklist for this sitting. There is no per-field endpoint
+     — see BACKEND_REQUESTS.md — so this never leaves the browser, and the
+     document-level decision remains the only thing the server is told. */
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  /* C10: below 768 px the split view has no room for two panes, so it becomes
+     two tabs and selecting a value switches to the page. */
+  const narrow = useMediaQuery('(max-width: 768px)')
+  const [mobileTab, setMobileTab] = useState<'document' | 'information'>('information')
 
   const documentQuery = useQuery({
     queryKey: ['document', id, activeProjectId],
@@ -86,6 +95,42 @@ export default function DocumentAnalysis() {
     () => groups.filter((g) => g.key !== 'lineItems').flatMap((g) => g.paths),
     [groups],
   )
+
+  /*
+   * The review queue: every field the backend flagged, in the order they appear
+   * on screen, minus the ones this reviewer has already looked at. "Review
+   * next" walks it, which is the difference between a list of problems and a
+   * piece of work with an end.
+   */
+  const reviewQueue = useMemo(
+    () =>
+      groups
+        .flatMap((group) => group.paths)
+        .filter((path) => fields[path]?.status === 'needs_review'),
+    [groups, fields],
+  )
+  const remaining = reviewQueue.filter((path) => !checked.has(path))
+
+  /* C10: on a narrow screen, choosing a value means wanting to see it on the
+     page, so selection moves to the document tab and its highlight. */
+  const selectField = useCallback(
+    (path: string | null) => {
+      setSelectedPath(path)
+      if (narrow && path) setMobileTab('document')
+    },
+    [narrow],
+  )
+
+  const reviewNext = useCallback(() => {
+    const next =
+      remaining.find((path) => path !== selectedPath) ?? remaining[0] ?? null
+    if (!next) return
+    setSelectedPath(next)
+    window.requestAnimationFrame(() => {
+      document.getElementById(`field-${next}`)?.scrollIntoView({ block: 'center' })
+      if (narrow) setMobileTab('document')
+    })
+  }, [remaining, selectedPath, narrow])
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -220,11 +265,130 @@ export default function DocumentAnalysis() {
     )
   }
 
+  const documentPane = (
+    <>
+        {doc && (
+          <PageViewer
+            documentId={id}
+            projectId={activeProjectId}
+            pageCount={doc.pages || 1}
+            pageSizes={doc.page_sizes ?? {}}
+            boxes={boxes}
+            selectedPath={selectedPath}
+            onSelectPath={selectField}
+          />
+        )}
+    </>
+  )
+
+  const informationPane = (
+    <>
+        <div className="flex h-full flex-col bg-[var(--surface-raised)]">
+          <div
+            ref={panelRef}
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
+            {groups.map((group) => (
+              <section key={group.key}>
+                <h2 className="sticky top-0 z-10 border-b bg-[var(--surface-sunken)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                  {group.label}
+                </h2>
+                {group.key === 'lineItems' && extraction ? (
+                  <LineItemGrid
+                    extraction={extraction}
+                    selectedPath={selectedPath}
+                    onSelectPath={selectField}
+                  />
+                ) : (
+                  <div className="divide-y">
+                    {group.paths.map((path) => (
+                      <FieldRow
+                        key={path}
+                        path={path}
+                        entry={{
+                          ...fields[path],
+                          value:
+                            path in pending ? pending[path] : fields[path].value,
+                          status:
+                            path in pending ? 'corrected' : fields[path].status,
+                        }}
+                        selected={selectedPath === path}
+                        editing={editingPath === path}
+                        draft={draft}
+                        checked={checked.has(path)}
+                        onSelect={() => selectField(path)}
+                        onCheck={() =>
+                          setChecked((current) => new Set(current).add(path))
+                        }
+                        onEdit={() => startEdit(path)}
+                        onDraft={setDraft}
+                        onCommit={commitEdit}
+                        onCancel={() => setEditingPath(null)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            ))}
+          </div>
+
+          {/* Sticky action bar */}
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-[var(--surface-raised)] px-3 py-2">
+            <span className="text-xs text-[var(--text-tertiary)]">
+              {dirty
+                ? `${Object.keys(pending).length} unsaved change${Object.keys(pending).length === 1 ? '' : 's'}`
+                : 'J/K move · E edit · A approve'}
+            </span>
+            <div className="flex items-center gap-2">
+              {dirty && (
+                <Button variant="ghost" size="sm" onClick={() => setPending({})}>
+                  Discard
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={saveMutation.isPending}
+                disabled={!dirty}
+                onClick={() => saveMutation.mutate()}
+              >
+                Save changes
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRejecting(true)}
+                disabled={extraction?.status === 'rejected'}
+              >
+                <X className="h-3.5 w-3.5" />
+                Reject
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                // Never approve over unsaved edits: the approval would apply
+                // to the version on the server, not the one on screen.
+                disabled={dirty || extraction?.status === 'rejected'}
+                loading={decideMutation.isPending}
+                onClick={() => decideMutation.mutate({ action: 'approve' })}
+                title={dirty ? 'Save your changes first' : undefined}
+              >
+                <Check className="h-3.5 w-3.5" />
+                Approve
+              </Button>
+            </div>
+          </div>
+        </div>
+    </>
+  )
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-[var(--surface-raised)] px-4 py-2.5">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b bg-[var(--surface-raised)] px-4 py-2.5">
+        {/* Below `sm` the name takes its own row: sharing one with four
+            controls left it no width at all and it disappeared. */}
+        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
           <Link
             to="/app"
             aria-label="Back to documents"
@@ -236,7 +400,7 @@ export default function DocumentAnalysis() {
             <h1 className="truncate text-sm font-semibold text-[var(--text-primary)]">
               {doc?.filename ?? 'Document'}
             </h1>
-            <p className="text-xs text-[var(--text-tertiary)]">
+            <p className="truncate text-xs whitespace-nowrap text-[var(--text-tertiary)]">
               {doc?.document_type?.replace(/_/g, ' ') ?? 'unknown type'} ·{' '}
               {doc?.pages ?? 0} page{doc?.pages === 1 ? '' : 's'}
               {extraction ? ` · version ${extraction.version}` : ''}
@@ -277,7 +441,11 @@ export default function DocumentAnalysis() {
         <Banner
           tone="danger"
           icon={<AlertTriangle className="h-4 w-4" />}
-          title={`This looks like a ${(doc?.document_type ?? 'different document').replace(/_/g, ' ')}, not what this schema expects.`}
+          title={
+            doc?.document_type && doc.document_type !== 'unknown'
+              ? `This doesn't look like an invoice — it looks like a ${doc.document_type.replace(/_/g, ' ')}.`
+              : "This doesn't look like an invoice."
+          }
           body={
             extraction?.status === 'document_type_mismatch'
               ? 'No data was extracted. Send it to a schema for its own document type.'
@@ -298,119 +466,82 @@ export default function DocumentAnalysis() {
         />
       )}
 
+      {/* The work, with an end to it: how many values are waiting, and a way
+          through them in the order they appear. */}
+      {reviewQueue.length > 0 && !processing && (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-[var(--surface-raised)] px-4 py-2">
+          <p className="text-sm text-[var(--text-primary)]">
+            {remaining.length === 0 ? (
+              <>
+                You have been through all {reviewQueue.length} field
+                {reviewQueue.length === 1 ? '' : 's'}. Approve when you are happy.
+              </>
+            ) : (
+              <>
+                <span className="font-medium">
+                  {remaining.length} field{remaining.length === 1 ? '' : 's'} need
+                  {remaining.length === 1 ? 's' : ''} your review
+                </span>
+                {checked.size > 0 && (
+                  <span className="text-[var(--text-tertiary)]">
+                    {' '}
+                    · {checked.size} checked
+                  </span>
+                )}
+              </>
+            )}
+          </p>
+          {remaining.length > 0 && (
+            <Button size="sm" variant="secondary" onClick={reviewNext}>
+              Review next
+            </Button>
+          )}
+        </div>
+      )}
+
       {processing ? (
         <ProcessingState />
+      ) : narrow ? (
+        /* C10. Two panes do not fit below 768 px, so they become two tabs.
+           Choosing a value on the Information tab moves to Document, where its
+           highlight is. */
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div
+            role="tablist"
+            aria-label="Document view"
+            className="flex shrink-0 gap-0.5 border-b bg-[var(--surface-raised)] p-1"
+          >
+            {(['document', 'information'] as const).map((tab) => (
+              <button
+                key={tab}
+                role="tab"
+                aria-selected={mobileTab === tab}
+                onClick={() => setMobileTab(tab)}
+                className={cn(
+                  'flex-1 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium capitalize transition-colors',
+                  mobileTab === tab
+                    ? 'bg-[var(--surface-selected)] text-[var(--text-brand)]'
+                    : 'text-[var(--text-secondary)]',
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          <div className="min-h-0 flex-1">
+            {mobileTab === 'document' ? documentPane : informationPane}
+          </div>
+        </div>
       ) : (
         <Group orientation="horizontal" className="flex min-h-0 flex-1">
           <Panel defaultSize="56" minSize="30">
-            {doc && (
-              <PageViewer
-                documentId={id}
-                projectId={activeProjectId}
-                pageCount={doc.pages || 1}
-                pageSizes={doc.page_sizes ?? {}}
-                boxes={boxes}
-                selectedPath={selectedPath}
-                onSelectPath={setSelectedPath}
-              />
-            )}
+            {documentPane}
           </Panel>
 
           <Separator className="w-px shrink-0 cursor-col-resize bg-[var(--border-subtle)] transition-colors hover:bg-[var(--accent-solid)] data-[separator]:data-[active]:bg-[var(--accent-solid)]" />
 
           <Panel defaultSize="44" minSize="28">
-            <div className="flex h-full flex-col bg-[var(--surface-raised)]">
-              <div
-                ref={panelRef}
-                className="min-h-0 flex-1 overflow-y-auto"
-              >
-                {groups.map((group) => (
-                  <section key={group.key}>
-                    <h2 className="sticky top-0 z-10 border-b bg-[var(--surface-sunken)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                      {group.label}
-                    </h2>
-                    {group.key === 'lineItems' && extraction ? (
-                      <LineItemGrid
-                        extraction={extraction}
-                        selectedPath={selectedPath}
-                        onSelectPath={setSelectedPath}
-                      />
-                    ) : (
-                      <div className="divide-y">
-                        {group.paths.map((path) => (
-                          <FieldRow
-                            key={path}
-                            path={path}
-                            entry={{
-                              ...fields[path],
-                              value:
-                                path in pending ? pending[path] : fields[path].value,
-                              status:
-                                path in pending ? 'corrected' : fields[path].status,
-                            }}
-                            selected={selectedPath === path}
-                            editing={editingPath === path}
-                            draft={draft}
-                            onSelect={() => setSelectedPath(path)}
-                            onEdit={() => startEdit(path)}
-                            onDraft={setDraft}
-                            onCommit={commitEdit}
-                            onCancel={() => setEditingPath(null)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                ))}
-              </div>
-
-              {/* Sticky action bar */}
-              <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-[var(--surface-raised)] px-3 py-2">
-                <span className="text-xs text-[var(--text-tertiary)]">
-                  {dirty
-                    ? `${Object.keys(pending).length} unsaved change${Object.keys(pending).length === 1 ? '' : 's'}`
-                    : 'J/K move · E edit · A approve'}
-                </span>
-                <div className="flex items-center gap-2">
-                  {dirty && (
-                    <Button variant="ghost" size="sm" onClick={() => setPending({})}>
-                      Discard
-                    </Button>
-                  )}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    loading={saveMutation.isPending}
-                    disabled={!dirty}
-                    onClick={() => saveMutation.mutate()}
-                  >
-                    Save changes
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setRejecting(true)}
-                    disabled={extraction?.status === 'rejected'}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Reject
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    // Never approve over unsaved edits: the approval would apply
-                    // to the version on the server, not the one on screen.
-                    disabled={dirty || extraction?.status === 'rejected'}
-                    loading={decideMutation.isPending}
-                    onClick={() => decideMutation.mutate({ action: 'approve' })}
-                    title={dirty ? 'Save your changes first' : undefined}
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                    Approve
-                  </Button>
-                </div>
-              </div>
-            </div>
+            {informationPane}
           </Panel>
         </Group>
       )}

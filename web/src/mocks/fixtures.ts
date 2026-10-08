@@ -23,6 +23,8 @@ type Spec = {
   match: FieldEntry['match']
   bbox?: [number, number, number, number]
   reasons?: string[]
+  /** Set to make the evidence OCR, with this minimum word confidence. */
+  ocr?: number
 }
 
 /** Boxes are in PDF points against a 595 x 842 page, as the real API returns. */
@@ -30,7 +32,18 @@ const HEADER: Spec[] = [
   { path: 'document_type', value: 'invoice', match: 'normalized', bbox: [40, 108, 120, 119] },
   { path: 'invoice_number', value: 'INV-2026-0417', match: 'exact', bbox: [146, 121, 232, 132] },
   { path: 'invoice_date', value: '2026-03-17', match: 'normalized', bbox: [330, 121, 400, 132] },
-  { path: 'due_date', value: '2026-04-16', match: 'normalized', bbox: [330, 134, 400, 145] },
+  // Two fields are deliberately imperfect, so the review path is exercised:
+  // one word the scanner struggled with, and one value with nowhere on the page
+  // to point at. Without them every mock document is clean and the review queue
+  // never appears.
+  {
+    path: 'due_date',
+    value: '2026-04-16',
+    match: 'fuzzy_ocr',
+    bbox: [330, 134, 400, 145],
+    ocr: 0.61,
+    reasons: ['possible_ocr_misread'],
+  },
   { path: 'po_number', value: 'PO-88213', match: 'exact', bbox: [120, 134, 180, 145] },
   { path: 'do_number', value: null, match: 'not_checked' },
   { path: 'vendor_name', value: 'SOUTHERN STEEL TRADING SDN BHD', match: 'exact', bbox: [40, 56, 290, 68] },
@@ -42,7 +55,7 @@ const HEADER: Spec[] = [
   { path: 'buyer_tax_id', value: null, match: 'not_checked' },
   { path: 'buyer_address', value: null, match: 'not_checked' },
   { path: 'amount_in_words', value: null, match: 'not_checked' },
-  { path: 'payment_terms', value: '30 days nett', match: 'exact', bbox: [40, 303, 130, 314] },
+  { path: 'payment_terms', value: '30 days nett', match: 'not_found', reasons: ['value_not_found_on_page'] },
   { path: 'bank_account', value: null, match: 'not_checked' },
 ]
 
@@ -62,9 +75,16 @@ const LINE_ITEMS: { description: string; quantity: string; unit_price: string; a
   { description: 'Steel plate 6mm SP-6000', quantity: '5', unit_price: '220.00', amount: '1100.00', top: 225 },
 ]
 
-function evidence(bbox?: [number, number, number, number]): Evidence[] {
-  if (!bbox) return []
-  return [{ page: 1, bbox, source: 'text_layer', ocr_confidence: null }]
+function evidence(spec: Spec): Evidence[] {
+  if (!spec.bbox) return []
+  return [
+    {
+      page: 1,
+      bbox: spec.bbox,
+      source: spec.ocr === undefined ? 'text_layer' : 'ocr',
+      ocr_confidence: spec.ocr ?? null,
+    },
+  ]
 }
 
 function entry(spec: Spec): FieldEntry {
@@ -72,9 +92,13 @@ function entry(spec: Spec): FieldEntry {
   return {
     value: spec.value,
     raw_text: absent ? null : spec.value,
-    status: absent ? 'missing' : spec.match === 'not_found' ? 'needs_review' : 'accepted',
+    status: absent
+      ? 'missing'
+      : spec.match === 'not_found' || spec.match === 'fuzzy_ocr'
+        ? 'needs_review'
+        : 'accepted',
     match: spec.match,
-    evidence: evidence(spec.bbox),
+    evidence: evidence(spec),
     reasons: spec.reasons ?? [],
   }
 }
@@ -118,14 +142,12 @@ export function buildAnalysis(base: Partial<Extraction>): Extraction {
     extraction_id: 'ext_1m4an4fjhp7x4a2tz',
     document_id: 'doc_1m4an4f05hm4wn0vd',
     version: 1,
-    status: 'completed',
     document_type: 'invoice',
     schema: { id: 'invoice', version: 1 },
     currency: 'MYR',
     pipeline_version: '2026.10.1',
     created_at: '2026-10-07T07:44:12',
     validation: [],
-    reasons: [],
     suggested_fields: Object.entries(fields)
       .filter(([, value]) => ['exact', 'normalized', 'derived'].includes(value.match))
       .map(([path]) => path)
@@ -133,6 +155,12 @@ export function buildAnalysis(base: Partial<Extraction>): Extraction {
     ...base,
     data,
     fields,
+    // After `base`, not before: the captured response says "completed", and it
+    // was captured from a document whose fields were all clean. Two of these
+    // are not, so the status has to follow them — a result cannot read "Ready"
+    // while values are still waiting on a person.
+    status: 'needs_review',
+    reasons: [],
   } as Extraction
 }
 

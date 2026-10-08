@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { Check, Pencil, X } from 'lucide-react'
+import { Check, CheckCheck, Pencil, X } from 'lucide-react'
 import type { Extraction, FieldEntry } from '../../api/types'
 import { columnOf, formatAmount, humanisePath, rowIndexOf } from '../../lib/format'
 import { humaniseReason, matchMeta } from '../../lib/status'
 import { cn } from '../../lib/utils'
 import { Button } from '../ui/Button'
-import { MatchBadge } from '../StatusBadge'
+import { VerificationBadge } from '../ui/VerificationBadge'
 
 /**
  * Which group a field belongs to.
@@ -57,33 +57,48 @@ function displayValue(path: string, entry: FieldEntry) {
   return String(entry.value)
 }
 
-/** One scalar field: value, match badge, reasons, inline edit. */
+/** One scalar field: value, verification state, reasons, inline edit. */
 export function FieldRow({
   path,
   entry,
   selected,
   editing,
   draft,
+  checked,
   onSelect,
   onEdit,
   onDraft,
   onCommit,
   onCancel,
+  onCheck,
 }: {
   path: string
   entry: FieldEntry
   selected: boolean
   editing: boolean
   draft: string
+  /** Marked checked by this reviewer, in this sitting. See `onCheck`. */
+  checked?: boolean
   onSelect: () => void
   onEdit: () => void
   onDraft: (value: string) => void
   onCommit: () => void
   onCancel: () => void
+  onCheck?: () => void
 }) {
   const value = displayValue(path, entry)
   const meta = matchMeta(entry.match)
   const absent = entry.status === 'missing' || value === null
+  const needsReview = entry.status === 'needs_review'
+  /* OCR confidence rides on the evidence, and only scans have it. Taking the
+     lowest across a value's words means a run is as trustworthy as its worst
+     word, which is the honest reading. */
+  const ocrConfidence = useMemo(() => {
+    const values = (entry.evidence ?? [])
+      .map((item) => item?.ocr_confidence)
+      .filter((n): n is number => typeof n === 'number')
+    return values.length > 0 ? Math.min(...values) : undefined
+  }, [entry.evidence])
 
   return (
     <div
@@ -101,7 +116,37 @@ export function FieldRow({
           {humanisePath(path)}
         </span>
         <span className="flex shrink-0 items-center gap-1">
-          {!absent && <MatchBadge match={entry.match} />}
+          {!absent && (
+            <VerificationBadge match={entry.match} ocrConfidence={ocrConfidence} />
+          )}
+          {/* There is no per-field endpoint, so this is a reviewer's own
+              checklist for this sitting: it clears the field from "needs your
+              review" and nothing more. The document-level Approve is the only
+              thing the server hears about. */}
+          {needsReview && !checked && onCheck && !editing && (
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={`Mark ${humanisePath(path)} as checked`}
+              title="Mark as checked — your own list, not sent to the server"
+              className="h-5 w-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation()
+                onCheck()
+              }}
+            >
+              <CheckCheck className="h-3 w-3" />
+            </Button>
+          )}
+          {checked && (
+            <span
+              title="You marked this as checked"
+              className="inline-flex items-center gap-0.5 text-[11px] text-[var(--color-success-600)]"
+            >
+              <CheckCheck className="h-3 w-3" />
+              Checked
+            </span>
+          )}
           {!editing && (
             <Button
               size="icon"

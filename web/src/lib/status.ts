@@ -12,6 +12,8 @@
  *    "Not on document".
  */
 
+import { DOC_STATUS } from './copy'
+
 export type DocumentStatus =
   | 'processing'
   | 'completed'
@@ -23,42 +25,49 @@ export type DocumentStatus =
 
 export type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'brand'
 
+/*
+ * Labels come from `copy.ts`, not from here. Two tables of status words drift
+ * apart — the list said "Completed" while the banner above it said two fields
+ * needed review — and the glossary is the one a non-technical reader was
+ * written for. This table keeps only what is specific to it: the tone and the
+ * explanation behind the badge.
+ */
 export const STATUS_META: Record<
   string,
   { label: string; tone: Tone; help: string }
 > = {
   processing: {
-    label: 'Processing',
+    label: DOC_STATUS.processing,
     tone: 'info',
     help: 'Still running. This view polls every 2 seconds.',
   },
   completed: {
-    label: 'Completed',
+    label: DOC_STATUS.completed,
     tone: 'success',
     help: 'Every required field was grounded and all validators passed.',
   },
   needs_review: {
-    label: 'Needs review',
+    label: DOC_STATUS.needs_review,
     tone: 'warning',
     help: 'Provisional. See the reasons for what a person has to confirm.',
   },
   document_type_mismatch: {
-    label: 'Type mismatch',
+    label: DOC_STATUS.document_type_mismatch,
     tone: 'danger',
     help: 'This document is not the type the schema expects, so no data was returned.',
   },
   rejected: {
-    label: 'Rejected',
+    label: DOC_STATUS.rejected,
     tone: 'neutral',
     help: 'A reviewer rejected this extraction. It is read-only.',
   },
   failed: {
-    label: 'Failed',
+    label: DOC_STATUS.failed,
     tone: 'danger',
     help: 'Processing failed. The error code says why; a retry may work.',
   },
   unsupported: {
-    label: 'Unsupported',
+    label: DOC_STATUS.unsupported,
     tone: 'danger',
     help: 'This file is refused permanently. Retrying will not help.',
   },
@@ -192,6 +201,16 @@ export function humaniseReason(reason: string): string {
         : 'Required by this schema, but not found'
     case 'validation':
       return VALIDATION_LABELS[detail] ?? `Validation: ${(detail ?? '').replace(/_/g, ' ')}`
+    // The four per-field verdicts from `decision.py`. Without these they fell
+    // through to the default and reached a reviewer as the raw code.
+    case 'possible_ocr_misread':
+      return 'Close to a word the scanner read with difficulty — worth checking against the page'
+    case 'low_ocr_confidence':
+      return 'Found on the page, but the scan of those words is poor'
+    case 'value_not_found_on_page':
+      return 'A value was produced, but nothing matching it is on the page'
+    case 'not_grounded':
+      return 'Nothing on the page was checked against this value'
     case 'schema_invalid':
       return 'The model output did not match the schema after a repair attempt'
     case 'document_truncated':

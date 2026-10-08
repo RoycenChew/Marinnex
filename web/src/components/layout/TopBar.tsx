@@ -3,6 +3,7 @@ import {
   Check,
   ChevronDown,
   LogOut,
+  Menu,
   Monitor,
   Moon,
   Search,
@@ -23,7 +24,14 @@ const MENU_ITEM =
   'text-sm text-[var(--text-primary)] outline-none ' +
   'data-[highlighted]:bg-[var(--surface-hover)]'
 
-export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
+export function TopBar({
+  onOpenSearch,
+  onOpenNav,
+}: {
+  onOpenSearch: () => void
+  /** Only passed on narrow screens, where the sidebar is a drawer. */
+  onOpenNav?: () => void
+}) {
   const { user, projects, activeProjectId, setActiveProjectId, logout } = useAuth()
   const { choice, resolved, setChoice } = useTheme()
   const activeProject = projects.find((p) => p.id === activeProjectId)
@@ -31,6 +39,16 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b bg-[var(--surface-raised)] px-4">
       <div className="flex min-w-0 items-center gap-2">
+        {onOpenNav && (
+          <button
+            type="button"
+            onClick={onOpenNav}
+            aria-label="Open navigation"
+            className="-ml-1 rounded-[var(--radius-sm)] p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        )}
         {/* Project switcher. Rendered as a menu rather than a native <select>
             so it can show a check against the active project and stay on-theme
             in dark mode, which a native control cannot. */}
@@ -79,14 +97,18 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
           className={cn(
             'flex items-center gap-2 rounded-[var(--radius-sm)] border px-2.5 py-1.5',
             'text-sm text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]',
-            'min-w-56 justify-between',
+            // A 224px-wide search box does not fit beside the project switcher
+            // at 390px, where it overlapped it. Below `sm` it is the icon only;
+            // the shortcut hint goes with the width, since there is no keyboard
+            // to press it on.
+            'justify-between sm:min-w-56',
           )}
         >
           <span className="flex items-center gap-2">
             <Search className="h-3.5 w-3.5" />
-            Search
+            <span className="hidden sm:inline">Search</span>
           </span>
-          <kbd className="rounded-[var(--radius-xs)] border px-1.5 py-0.5 font-sans text-2xs text-[var(--text-tertiary)]">
+          <kbd className="hidden rounded-[var(--radius-xs)] border px-1.5 py-0.5 font-sans text-2xs text-[var(--text-tertiary)] sm:inline">
             ⌘K
           </kbd>
         </button>

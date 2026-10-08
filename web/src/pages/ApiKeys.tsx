@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Tabs from '@radix-ui/react-tabs'
@@ -88,6 +89,8 @@ export default function ApiKeys() {
         </Button>
       }
     >
+      <ApiJourney hasKeys={keys.length > 0} onCreate={() => setCreating(true)} />
+
       <TableShell className="mb-5">
         <Table>
           <THead>
@@ -349,6 +352,77 @@ function CreateKeyDialog({
   )
 }
 
+/**
+ * The integration journey from Part 10 of the blueprint.
+ *
+ * The API is a feature of the product, not a page of documentation bolted to
+ * the side, so the route from "what can I do with this" to a working call is
+ * stated on the screen where a key is made. Each step describes something this
+ * backend does today — no webhooks, no SDK, no batch endpoint.
+ */
+function ApiJourney({
+  hasKeys,
+  onCreate,
+}: {
+  hasKeys: boolean
+  onCreate: () => void
+}) {
+  const steps = [
+    {
+      title: 'Choose a schema version',
+      body: 'A schema is the list of fields you get back. Pin a version and the response shape stays fixed, whatever we change.',
+    },
+    {
+      title: 'Create a key',
+      body: 'Test keys never reach the paid provider, so building against them costs nothing. Live keys do real extractions.',
+    },
+    {
+      title: 'Send a document',
+      body: 'POST the file to /v1/extract. Add ?wait=30 to hold the connection for a quick answer, or poll the extraction.',
+    },
+    {
+      title: 'Read the result',
+      body: 'completed means every check passed. needs_review returns the data with per-field reasons. Nothing is silently accepted.',
+    },
+  ]
+
+  return (
+    <section className="mb-5 rounded-[var(--radius-lg)] border bg-[var(--surface-raised)] p-5">
+      <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+        From here to a working integration
+      </h2>
+      <ol className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {steps.map((step, index) => (
+          <li key={step.title}>
+            <span className="tabular flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-selected)] text-xs font-medium text-[var(--text-brand)]">
+              {index + 1}
+            </span>
+            <h3 className="mt-2 text-sm font-medium text-[var(--text-primary)]">
+              {step.title}
+            </h3>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+              {step.body}
+            </p>
+          </li>
+        ))}
+      </ol>
+      {!hasKeys && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button variant="secondary" size="sm" onClick={onCreate}>
+            Create a test key
+          </Button>
+          <Link
+            to="/guide"
+            className="text-sm font-medium text-[var(--text-brand)] hover:underline"
+          >
+            Read the integration guide
+          </Link>
+        </div>
+      )}
+    </section>
+  )
+}
+
 /** The one-time reveal. There is no second chance, so the dialog says so. */
 function RevealDialog({
   issued,
@@ -367,10 +441,22 @@ function RevealDialog({
           </Dialog.Title>
           <div className="mt-3 flex items-start gap-2 rounded-[var(--radius-md)] bg-[var(--color-warning-50)] p-3 text-sm text-[var(--color-warning-700)] dark:bg-[var(--color-warning-500)]/10 dark:text-[var(--color-warning-500)]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>
-              This is the only time the key is shown. Only a hash is stored, so it
-              cannot be recovered — if you lose it, revoke it and create another.
-            </p>
+            <div>
+              <p>
+                This is the only time the key is shown. Only a hash is stored, so
+                it cannot be recovered — if you lose it, revoke it and create
+                another.
+              </p>
+              {/* A key in frontend code is a key the public has. Said here,
+                  where it is being copied, rather than in documentation nobody
+                  reads at this moment. */}
+              <p className="mt-2">
+                Treat it like a password. Keep it on your server, in an
+                environment variable or a secret store. Never put it in a web
+                page, a mobile app or a public repository — anyone who has it can
+                spend your quota.
+              </p>
+            </div>
           </div>
           <div className="mt-3 flex items-center gap-2 rounded-[var(--radius-sm)] border bg-[var(--surface-sunken)] p-2.5">
             <code className="min-w-0 flex-1 overflow-x-auto font-mono text-xs text-[var(--text-primary)]">
