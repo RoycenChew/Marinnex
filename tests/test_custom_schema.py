@@ -471,3 +471,265 @@ def test_display_formats_reach_the_spreadsheet_and_never_the_api() -> None:
     assert "ISO 8601" in (
         contract["properties"]["data"]["properties"]["invoice_date"]["description"]
     )
+
+
+# --- the custom-field path, end to end, with a scripted model ----------------
+
+
+def _scripted(holder: dict[str, Any]) -> Any:
+    """The sample's own answer for whichever document it is shown, plus `extra`.
+
+    `ScriptedLLM` through the mock provider: the reply is stated here and
+    everything after it — grounding, validation, the decision — is the real
+    pipeline, with no network and no heuristic anywhere.
+
+    It delegates to the shipped fixture handler rather than answering with one
+    fixed invoice, because a handler that replied with the first invoice for
+    every page would fail grounding on the other two and no test run would ever
+    pass.
+    """
+    import json as _json
+
+    from fixtures import handler_for
+
+    base = handler_for()
+
+    def handler(messages: Any) -> str:
+        answered = base(messages)
+        reply = _json.loads(answered)
+        # A classification reply is left alone; only an extraction gains the
+        # custom field. Told apart by shape rather than by prompt text, which
+        # keeps this working if the prompt is ever reworded.
+        if set(reply) == {"document_type", "confidence"}:
+            return answered
+        # Read at call time, so a test can change the answer between the test
+        # run and the extract — which is the case that matters in production:
+        # the field was there on the documents you tested, and the next invoice
+        # is different. Counting calls was tried and is unreliable, because a
+        # replayed checkpoint never reaches the handler at all.
+        return _json.dumps({**reply, **holder})
+
+    return handler
+
+
+def _with_handler(handler: Any) -> Any:
+    """Patch the model stack for one request, as the pipeline tests do."""
+    from contextlib import contextmanager
+
+    import fdip.api.routers.pipeline as pipeline_module
+    import fdip.api.routers.schemas as schemas_module
+    from fdip.adapters import providers
+
+    @contextmanager
+    def scope() -> Any:
+        original = providers.build_model_stack
+
+        def patched(*args: Any, **kwargs: Any) -> Any:
+            kwargs["handler"] = handler
+            return original(*args, **kwargs)
+
+        providers.build_model_stack = patched
+        pipeline_module.build_model_stack = patched
+        schemas_module.build_model_stack = patched
+        try:
+            yield
+        finally:
+            providers.build_model_stack = original
+            pipeline_module.build_model_stack = original
+            schemas_module.build_model_stack = original
+
+    return scope()
+
+
+def _custom_schema(client: Any, name: str, *, required: bool,
+                   document_ids: list[str]) -> tuple[str, int, str]:
+    created = client.post("/v1/schemas", json={
+        "template_id": "tpl_invoice_v1",
+        "name": name,
+        "fields": TEMPLATE_FIELDS,
+        "locale_hints": {"date_order": "DMY"},
+        "field_config": {"invoice_number": {"alias": "bill_no"}},
+        "custom_fields": [{
+            "name": "purchase_order", "kind": "text",
+            "description": "The purchase order number the buyer issued.",
+            "hints": ["PO Number", "No. Pesanan"],
+            "required": required,
+        }],
+    })
+    assert created.status_code == 201, created.text
+    schema_id = created.json()["schema_id"]
+    version = created.json()["version"]
+    run = client.post(
+        "/v1/schemas/%s/versions/%d/test-runs" % (schema_id, version),
+        json={"document_ids": document_ids},
+    )
+    assert run.status_code == 202, run.text
+    assert run.json()["passed"], run.json()["per_document"]
+    key = client.post("/v1/api-keys", json={
+        "name": name, "mode": "test",
+        "schema_versions": [{"schema_id": schema_id, "version": version}],
+    }).json()["key"]
+    return schema_id, version, key
+
+
+def _extract(client: Any, pdf: Any, schema_id: str, version: int,
+             key: str, sample: str = "invoice_digital") -> dict[str, Any]:
+    path = pdf(sample)
+    with path.open("rb") as handle:
+        response = client.post(
+            "/v1/extract?wait=30",
+            headers={"Authorization": "Bearer " + key},
+            files={"file": (path.name, handle, "application/pdf")},
+            data={"schema_id": schema_id, "schema_version": str(version)},
+        )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_a_custom_field_found_on_the_page_is_grounded_and_arrives_by_alias(
+    client: Any, pdf: Any, upload: Any, run_worker: Any
+) -> None:
+    """The happy path, proved rather than asserted.
+
+    `PO-88213` is printed on the sample invoice, so a model that reports it must
+    come back `exact` with evidence — and under the customer's own key name.
+    """
+    ids = []
+    for name in ("invoice_digital", "invoice_malay", "invoice_two_tax_lines"):
+        document_id, _ = upload(name)
+        ids.append(document_id)
+    run_worker(client.app.state.fdip.engine)
+
+    with _with_handler(_scripted({"purchase_order": "PO-88213"})):
+        schema_id, version, key = _custom_schema(
+            client, "PO present", required=False, document_ids=ids,
+        )
+        body = _extract(client, pdf, schema_id, version, key)
+
+    assert body["data"]["purchase_order"] == "PO-88213"
+    entry = body["fields"]["purchase_order"]
+    assert entry["match"] == "exact", entry
+    assert entry["status"] == "accepted"
+    assert entry["evidence"], "a grounded value points at the page"
+    # The alias applies to template fields on the same response.
+    assert "bill_no" in body["data"] and "invoice_number" not in body["data"]
+    assert body["status"] == "completed"
+
+
+def test_a_custom_value_that_is_not_on_the_page_goes_to_review_either_way(
+    client: Any, pdf: Any, upload: Any, run_worker: Any
+) -> None:
+    """A value nobody can point at is never quietly accepted.
+
+    Required or optional makes no difference once the model has *produced* a
+    value: an ungrounded value is the strongest hallucination signal there is,
+    and `decision.py` sends the document to review for it whether the schema
+    asked for the field or not. Being optional earns the field no leniency —
+    only being absent does, which the next test covers.
+    """
+    ids = []
+    for name in ("invoice_digital", "invoice_malay", "invoice_two_tax_lines"):
+        document_id, _ = upload(name)
+        ids.append(document_id)
+    run_worker(client.app.state.fdip.engine)
+
+    answer = {"purchase_order": "PO-88213"}
+    with _with_handler(_scripted(answer)):
+        schema_id, version, key = _custom_schema(
+            client, "PO absent optional", required=False, document_ids=ids,
+        )
+        answer["purchase_order"] = "PO-999999"
+        # A document outside the test set: an identical prompt would be replayed
+        # from the response cache and never reach the handler's new answer.
+        body = _extract(client, pdf, schema_id, version, key,
+                        sample="credit_note")
+
+    entry = body["fields"]["purchase_order"]
+    assert entry["match"] == "not_found", entry
+    assert entry["evidence"] == []
+    assert "value_not_found_on_page" in entry["reasons"]
+    assert body["status"] == "needs_review"
+    assert "field_not_grounded:purchase_order" in body["reasons"]
+
+
+# There is deliberately no separate "required, value not on the page" test.
+# `required` changes nothing once the model has produced a value: an ungrounded
+# value sends the document to review either way, which the test above proves.
+# Where `required` does bite is when the field is absent, and that is below.
+#
+# It could not be written end to end on this corpus in any case: only
+# `invoice_digital` prints a PO number, so a required custom field can never
+# pass a three-document test run here — itself a finding, and the gate below.
+
+
+def test_an_absent_custom_field_completes_when_optional_and_gates_when_required(
+    client: Any, pdf: Any, upload: Any, run_worker: Any
+) -> None:
+    """Where `required` actually bites: when the field is simply not there.
+
+    A model that answers `null` has produced nothing to disbelieve, so an
+    optional field stores as `missing` — "not on document" — and the document
+    completes. Declared required, the same answer never gets as far as a key:
+    the test run refuses to pass, which is the gate doing its job. A customer
+    finds out on their own three documents instead of in production.
+    """
+    ids = []
+    for name in ("invoice_digital", "invoice_malay", "invoice_two_tax_lines"):
+        document_id, _ = upload(name)
+        ids.append(document_id)
+    run_worker(client.app.state.fdip.engine)
+
+    with _with_handler(_scripted({"purchase_order": None})):
+        schema_id, version, key = _custom_schema(
+            client, "PO null optional", required=False, document_ids=ids,
+        )
+        optional = _extract(client, pdf, schema_id, version, key)
+
+    assert optional["data"]["purchase_order"] is None
+    assert optional["fields"]["purchase_order"]["status"] == "missing"
+    assert optional["status"] == "completed"
+
+    # Required, and absent from every sample: the test run fails and says so
+    # per field, so no key can be bound to the version at all.
+    with _with_handler(_scripted({"purchase_order": None})):
+        created = client.post("/v1/schemas", json={
+            "template_id": "tpl_invoice_v1",
+            "name": "PO null required",
+            "fields": TEMPLATE_FIELDS,
+            "locale_hints": {"date_order": "DMY"},
+            "custom_fields": [{
+                "name": "purchase_order", "kind": "text",
+                "description": "The purchase order number the buyer issued.",
+                "required": True,
+            }],
+        }).json()
+        run = client.post(
+            "/v1/schemas/%s/versions/1/test-runs" % created["schema_id"],
+            json={"document_ids": ids},
+        )
+
+    assert run.status_code == 202, run.text
+    assert run.json()["passed"] is False
+    assert all(
+        row["fields"]["purchase_order"] == "not_found"
+        for row in run.json()["per_document"]
+    ), run.json()["per_document"]
+
+    refused = client.post("/v1/api-keys", json={
+        "name": "blocked", "mode": "test",
+        "schema_versions": [
+            {"schema_id": created["schema_id"], "version": 1},
+        ],
+    })
+    if refused.status_code == 201:
+        # Keys may be minted against an untested version; the gate is at use.
+        path = pdf("invoice_digital")
+        with path.open("rb") as handle:
+            blocked = client.post(
+                "/v1/extract?wait=30",
+                headers={"Authorization": "Bearer " + refused.json()["key"]},
+                files={"file": (path.name, handle, "application/pdf")},
+                data={"schema_id": created["schema_id"], "schema_version": "1"},
+            )
+        assert blocked.status_code == 409
+        assert blocked.json()["code"] == "schema_test_run_required"
