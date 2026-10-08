@@ -210,6 +210,15 @@ schema_versions = Table(
     Column("locale_hints", JSON, nullable=False, default=dict),
     Column("template_version", Integer, nullable=False, default=1),
     Column("contract", JSON, nullable=False),
+    # Presentation only: alias, order, required, and display formats that reach
+    # exports and the screen but never the API (which stays ISO and decimal
+    # strings, so an integrator parses without knowing a locale).
+    Column("field_config", JSON, nullable=False, default=dict,
+           server_default="{}"),
+    # The fields this customer defined. Sent to the existing extract task as
+    # extra schema fields; there is no second AI call.
+    Column("custom_fields", JSON, nullable=False, default=list,
+           server_default="[]"),
     Column("test_run_status", String(16), nullable=False, default="none"),
     _created(),
     UniqueConstraint("schema_id", "version", name="uq_schema_versions"),

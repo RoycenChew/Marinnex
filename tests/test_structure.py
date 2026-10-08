@@ -259,7 +259,7 @@ def test_the_contract_states_the_two_ui_renderings() -> None:
     ):
         assert needle in text, needle
     # The cap keeps this document something a UI author will actually read end to
-    # end. Raised from 200 to 210 when `field-reviews` was added: the contract now
-    # covers 29 routes, and the four lines that document one are not padding. Trim
-    # before raising it again.
-    assert len(text.splitlines()) < 210, len(text.splitlines())
+    # end. 200 -> 210 for `field-reviews`, 210 -> 225 for custom schemas, which
+    # add two routes and a paragraph an integrator cannot work without: aliases
+    # change the keys they receive. Trim before raising it again.
+    assert len(text.splitlines()) < 225, len(text.splitlines())

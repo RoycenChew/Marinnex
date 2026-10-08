@@ -38,8 +38,32 @@ def evidence_view(row: RowMapping) -> dict[str, Any]:
     }
 
 
-def field_view(row: RowMapping, evidence: Sequence[RowMapping]) -> dict[str, Any]:
-    return {
+def presentation_for(repo: ProjectRepository,
+                     extraction: RowMapping) -> tuple[dict[str, str], frozenset[str]]:
+    """The alias map and the custom field names of the version that produced
+    this extraction, or empty if it was produced against the bare template."""
+    schema_id = extraction["schema_id"]
+    version = extraction["schema_version"]
+    if not schema_id or not version:
+        return {}, frozenset()
+    stored = repo.schema_version(str(schema_id), int(version))
+    if stored is None:
+        return {}, frozenset()
+    aliases = {
+        path: str(config["alias"])
+        for path, config in (stored["field_config"] or {}).items()
+        if config.get("alias")
+    }
+    custom = frozenset(
+        str(entry["name"]) for entry in (stored["custom_fields"] or [])
+    )
+    return aliases, custom
+
+
+def field_view(row: RowMapping, evidence: Sequence[RowMapping],
+               alias: str | None = None,
+               custom: bool = False) -> dict[str, Any]:
+    entry = {
         "value": row["value_json"],
         "raw_text": row["raw_text"],
         "status": str(row["status"]),
@@ -47,12 +71,42 @@ def field_view(row: RowMapping, evidence: Sequence[RowMapping]) -> dict[str, Any
         "evidence": [evidence_view(item) for item in evidence],
         "reasons": list(row["reasons"] or []),
     }
+    # Only on the reviewer surface, which keeps real paths: the alias is the
+    # label to show, and `custom` marks a field the customer defined, which has
+    # no template validation behind it and is worth a second look.
+    if alias:
+        entry["alias"] = alias
+    if custom:
+        entry["custom"] = True
+    return entry
 
 
 def extraction_view(repo: ProjectRepository, extraction: RowMapping,
-                    include_suggested: bool = False) -> dict[str, Any]:
+                    include_suggested: bool = False,
+                    aliases: Mapping[str, str] | None = None,
+                    labels: Mapping[str, str] | None = None,
+                    custom_names: frozenset[str] = frozenset(),
+                    ) -> dict[str, Any]:
+    """One extraction, rendered for one of two audiences.
+
+    **An integrator** asked for `bill_no` and must receive `bill_no`, so the
+    pipeline surface passes the version's aliases and both `data` and `fields`
+    are keyed by them.
+
+    **A reviewer** keeps real paths. Corrections are posted back by path, and
+    `extraction_fields.path` is what evidence and version history key on; if an
+    alias reached them, renaming a field would orphan the history of every value
+    already extracted under the old name. The alias rides along on each entry as
+    a label instead.
+    """
     field_rows = repo.fields(str(extraction["id"]))
     evidence = repo.evidence_for([str(row["id"]) for row in field_rows])
+    alias_of = dict(aliases or {})
+
+    def key(path: str) -> str:
+        return alias_of.get(path, path)
+
+    stored_data = extraction["data"] or {}
     body: dict[str, Any] = {
         "extraction_id": str(extraction["id"]),
         "document_id": str(extraction["document_id"]),
@@ -64,9 +118,14 @@ def extraction_view(repo: ProjectRepository, extraction: RowMapping,
             "version": int(extraction["schema_version"] or 1),
         },
         "currency": extraction["currency"],
-        "data": extraction["data"] or {},
+        "data": ({key(path): value for path, value in stored_data.items()}
+                 if alias_of else stored_data),
         "fields": {
-            str(row["path"]): field_view(row, evidence.get(str(row["id"]), []))
+            key(str(row["path"])): field_view(
+                row, evidence.get(str(row["id"]), []),
+                alias=(labels or {}).get(str(row["path"])),
+                custom=str(row["path"]) in custom_names,
+            )
             for row in field_rows
         },
         "validation": [
@@ -137,6 +196,19 @@ def document_list_item(document: RowMapping) -> dict[str, Any]:
     }
 
 
+def schema_version_view(row: RowMapping) -> dict[str, Any]:
+    """One stored version, rendered the same way wherever it appears."""
+    return {
+        "version": int(row["version"]),
+        "created_at": _iso(row["created_at"]),
+        "test_run_status": str(row["test_run_status"]),
+        "fields": list(row["fields"] or []),
+        "locale_hints": row["locale_hints"] or {},
+        "field_config": row["field_config"] or {},
+        "custom_fields": list(row["custom_fields"] or []),
+    }
+
+
 def schema_view(schema: RowMapping, versions: Sequence[RowMapping] = ()) -> dict[str, Any]:
     return {
         "schema_id": str(schema["id"]),
@@ -146,16 +218,7 @@ def schema_view(schema: RowMapping, versions: Sequence[RowMapping] = ()) -> dict
         "current_version": int(schema["current_version"]),
         "created_at": _iso(schema["created_at"]),
         "archived_at": _iso(schema["archived_at"]),
-        "versions": [
-            {
-                "version": int(row["version"]),
-                "created_at": _iso(row["created_at"]),
-                "test_run_status": str(row["test_run_status"]),
-                "fields": list(row["fields"] or []),
-                "locale_hints": row["locale_hints"] or {},
-            }
-            for row in versions
-        ],
+        "versions": [schema_version_view(row) for row in versions],
     }
 
 

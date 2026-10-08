@@ -167,7 +167,21 @@ def create_export(
         filter_status=payload.status,
     )
     try:
-        content = export_tools.render(payload.format, records)
+        # One export can span several schemas, so the display formats are
+        # resolved per extraction. They reach the spreadsheet only: the API
+        # stays ISO dates and decimal strings whatever a schema asks for.
+        display_formats: dict[str, Any] = {}
+        for _doc, record in records:
+            record_schema = record.get("schema_id")
+            record_version = record.get("schema_version")
+            if not record_schema or not record_version:
+                continue
+            version_row = repo.schema_version(str(record_schema),
+                                              int(record_version))
+            if version_row and version_row["field_config"]:
+                display_formats[str(record.get("id"))] = version_row["field_config"]
+        content = export_tools.render(payload.format, records,
+                                      display_formats)
     except Exception as error:
         repo.update_export(export_id, status="failed",
                            error_code=ErrorCode.INTERNAL.value, finished_at=now())

@@ -323,6 +323,21 @@
       },
       "CreateSchema": {
         "properties": {
+          "custom_fields": {
+            "items": {
+              "$ref": "#/components/schemas/CustomFieldIn"
+            },
+            "maxItems": 10,
+            "title": "Custom Fields",
+            "type": "array"
+          },
+          "field_config": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FieldConfigIn"
+            },
+            "title": "Field Config",
+            "type": "object"
+          },
           "fields": {
             "items": {
               "type": "string"
@@ -371,6 +386,87 @@
           "password"
         ],
         "title": "Credentials",
+        "type": "object"
+      },
+      "CustomFieldIn": {
+        "properties": {
+          "description": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "hints": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Hints",
+            "type": "array"
+          },
+          "kind": {
+            "default": "text",
+            "enum": [
+              "text",
+              "number",
+              "money",
+              "date"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "CustomFieldIn",
+        "type": "object"
+      },
+      "CustomFieldView": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "hints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Hints",
+            "type": "array"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "description"
+        ],
+        "title": "CustomFieldView",
         "type": "object"
       },
       "DecisionRequest": {
@@ -800,6 +896,73 @@
         "title": "Extraction",
         "type": "object"
       },
+      "FieldConfigIn": {
+        "description": "How one field is presented. Nothing here changes what is extracted.",
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "date_format": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Format"
+          },
+          "number_format": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number Format"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required"
+          }
+        },
+        "title": "FieldConfigIn",
+        "type": "object"
+      },
       "FieldEntry": {
         "properties": {
           "evidence": {
@@ -1083,6 +1246,21 @@
       },
       "NewVersion": {
         "properties": {
+          "custom_fields": {
+            "items": {
+              "$ref": "#/components/schemas/CustomFieldIn"
+            },
+            "maxItems": 10,
+            "title": "Custom Fields",
+            "type": "array"
+          },
+          "field_config": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FieldConfigIn"
+            },
+            "title": "Field Config",
+            "type": "object"
+          },
           "fields": {
             "items": {
               "type": "string"
@@ -1098,6 +1276,42 @@
           "fields"
         ],
         "title": "NewVersion",
+        "type": "object"
+      },
+      "PatchVersion": {
+        "description": "Level 1 edits to a draft version. Fields and custom fields are replaced\nwholesale, because a partial merge of a field map is ambiguous.",
+        "properties": {
+          "custom_fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CustomFieldIn"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Fields"
+          },
+          "field_config": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/FieldConfigIn"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Config"
+          }
+        },
+        "title": "PatchVersion",
         "type": "object"
       },
       "PendingAnalysis": {
@@ -1249,6 +1463,21 @@
               }
             ],
             "title": "Created At"
+          },
+          "custom_fields": {
+            "items": {
+              "$ref": "#/components/schemas/CustomFieldView"
+            },
+            "title": "Custom Fields",
+            "type": "array"
+          },
+          "field_config": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Field Config",
+            "type": "object"
           },
           "fields": {
             "items": {
@@ -1549,6 +1778,13 @@
           "document_id": {
             "title": "Document Id",
             "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "object"
           },
           "fields_ok": {
             "title": "Fields Ok",
@@ -3670,6 +3906,86 @@
         ]
       }
     },
+    "/v1/schemas/{schema_id}/versions/{version}": {
+      "patch": {
+        "description": "Adjust a draft version's presentation and custom fields.\n\nAllowed only while the version is still a draft. Once it has passed a test\nrun, or a live key is pinned to it, a customer may be relying on the key\nnames it publishes \u2014 changing them would break their integration with no\nsignal \u2014 so from that point a change is a new version, and this returns\n`409 schema_version_frozen` saying so.",
+        "operationId": "patch_version_v1_schemas__schema_id__versions__version__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schema_id",
+            "required": true,
+            "schema": {
+              "title": "Schema Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchVersion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaVersionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Version",
+        "tags": [
+          "schemas"
+        ]
+      }
+    },
     "/v1/schemas/{schema_id}/versions/{version}/contract": {
       "get": {
         "description": "The published JSON Schema of the extraction response for this version.\n\nServed from the stored copy rather than recompiled, so that a template change\ncannot alter a contract a customer has already integrated against.",
@@ -3744,7 +4060,7 @@
     },
     "/v1/schemas/{schema_id}/versions/{version}/test-runs": {
       "post": {
-        "description": "Score this version against documents already in the project.\n\nIt reuses existing extractions rather than calling the model again: the\nquestion a test run answers is \"does this field selection find values on my\ndocuments\", and the analysis run already has that answer. So a test run costs\nnothing and can be repeated.",
+        "description": "Score this version against documents already in the project.\n\nFor a template-only version this reuses the analysis extraction and costs\nnothing: the analysis ran the whole template, so it already knows whether\neach selected field was found.\n\nA version with **custom fields** cannot be answered that way. The analysis\nnever looked for `site_ref`, so reporting \"not found\" would be reporting\nthat nobody asked \u2014 which is exactly the false reassurance a test run exists\nto prevent. Those versions are therefore extracted for real, once per\ndocument, and that does cost a model call. It is the honest price of the\nquestion being asked.",
         "operationId": "create_test_run_v1_schemas__schema_id__versions__version__test_runs_post",
         "parameters": [
           {

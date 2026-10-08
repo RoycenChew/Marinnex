@@ -139,8 +139,12 @@ async def extract(
     extraction = repo.extraction(str(extraction_id))
     if extraction is None:  # pragma: no cover - just written in this transaction
         raise problems.not_found("extraction")
-    return JSONResponse(status_code=200,
-                        content=views.extraction_view(repo, extraction))
+    aliases, custom = views.presentation_for(repo, extraction)
+    return JSONResponse(
+        status_code=200,
+        content=views.extraction_view(repo, extraction, aliases=aliases,
+                                      custom_names=custom),
+    )
 
 
 def _check_quota(repo: ProjectRepository, state: AppState,

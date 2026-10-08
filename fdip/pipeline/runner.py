@@ -38,7 +38,12 @@ from fdip.adapters.providers import ModelStack
 from fdip.adapters.repository import ProjectRepository, now
 from fdip.adapters.sandbox import UnsupportedDocument
 from fdip.config import Settings
-from fdip.domain.schema_lang import LocaleHints, SchemaSpec
+from fdip.domain.schema_lang import (
+    CustomField,
+    FieldConfig,
+    LocaleHints,
+    SchemaSpec,
+)
 from fdip.domain.statuses import POISON_CODES, ErrorCode, JobState, Status
 from fdip.domain.templates import TEMPLATE_VERSION
 from fdip.pipeline import stages
@@ -440,11 +445,31 @@ def spec_from_version(row: Mapping[str, Any]) -> SchemaSpec:
     fields = row["fields"]
     if isinstance(fields, str):
         fields = json.loads(fields)
+
+    def _json(key: str, fallback: Any) -> Any:
+        value = row.get(key) or fallback
+        return json.loads(value) if isinstance(value, str) else value
+
+    config = {
+        path: FieldConfig(**values)
+        for path, values in _json("field_config", {}).items()
+    }
+    custom = tuple(
+        CustomField(
+            name=entry["name"], kind=entry["kind"],
+            description=entry["description"],
+            hints=tuple(entry.get("hints") or ()),
+            required=bool(entry.get("required", False)),
+        )
+        for entry in _json("custom_fields", [])
+    )
     return SchemaSpec(
         name=str(row.get("name") or "Invoice"),
         document_type=str(row.get("document_type") or "invoice"),
         fields=tuple(fields),
         locale_hints=LocaleHints(date_order=hints.get("date_order", "DMY")),
+        field_config=config,
+        custom_fields=custom,
     )
 
 

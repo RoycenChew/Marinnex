@@ -298,6 +298,29 @@ class ProjectRepository:
         )
         return list(self._c.execute(statement).mappings())
 
+    def update_schema_version(self, schema_id: str, version: int,
+                              **values: Any) -> None:
+        self._c.execute(
+            update(tables.schema_versions)
+            .where(tables.schema_versions.c.schema_id == schema_id)
+            .where(tables.schema_versions.c.version == version)
+            .where(tables.schema_versions.c.project_id == self.project_id)
+            .values(**values)
+        )
+
+    def keys_binding_version(self, schema_id: str, version: int) -> int:
+        """Live keys pinned to this exact version. A revoked key cannot be used,
+        so it is not a reason to freeze anything."""
+        bound = 0
+        for row in self.list_api_keys():
+            if row["revoked_at"] is not None:
+                continue
+            for grant in (row["schema_versions"] or []):
+                if (str(grant.get("schema_id")) == schema_id
+                        and int(grant.get("version", 0)) == version):
+                    bound += 1
+        return bound
+
     def set_schema_archived(self, schema_id: str, archived: bool) -> None:
         self._c.execute(
             update(tables.schemas)

@@ -113,6 +113,9 @@ class ErrorCode(StrEnum):
     # In use: something still points at it, so it cannot be destroyed.
     SCHEMA_ARCHIVED = "schema_archived"
     SCHEMA_IN_USE = "schema_in_use"
+    # A version a key points at, or that has passed a test run, is something a
+    # customer may already rely on: changes from then on are a new version.
+    SCHEMA_VERSION_FROZEN = "schema_version_frozen"
     QUOTA_EXCEEDED = "quota_exceeded"
     RATE_LIMITED = "rate_limited"
     NOT_FOUND = "not_found"

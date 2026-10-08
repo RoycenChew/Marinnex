@@ -208,12 +208,23 @@ class Template(BaseModel):
     fields: list[TemplateField]
 
 
+class CustomFieldView(BaseModel):
+    name: str
+    kind: str
+    description: str
+    hints: list[str] = Field(default_factory=list)
+    required: bool = False
+
+
 class SchemaVersionView(BaseModel):
     version: int
     created_at: datetime | None = None
     test_run_status: str
     fields: list[str]
     locale_hints: dict[str, str]
+    #: Presentation per path: alias, order, required, display formats.
+    field_config: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    custom_fields: list[CustomFieldView] = Field(default_factory=list)
 
 
 class SchemaView(BaseModel):
@@ -238,6 +249,10 @@ class TestRunDocument(BaseModel):
     status: str
     fields_ok: int
     fields_total: int
+    #: Per required field and per custom field: "found" or "not_found". A
+    #: customer who defines a field needs to see whether it was actually there
+    #: on their own documents before they build on it.
+    fields: dict[str, str] = Field(default_factory=dict)
 
 
 class TestRun(BaseModel):

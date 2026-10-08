@@ -16,6 +16,17 @@ import io
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from fdip.domain import display
+
+#: Which columns are dates and which are amounts, so a schema's display formats
+#: can be applied to the right ones. The API never sees any of this: it stays
+#: ISO and decimal strings, and only a spreadsheet a person opens is reformatted.
+_DATE_COLUMNS = frozenset({"invoice_date", "due_date"})
+_AMOUNT_COLUMNS = frozenset({
+    "subtotal", "discount_amount", "tax_amount", "rounding_adjustment", "total",
+    "quantity", "unit_price", "amount",
+})
+
 HEADER_COLUMNS: tuple[str, ...] = (
     "document_id", "filename", "status", "document_type", "currency",
     "invoice_number", "invoice_date", "due_date", "po_number",
@@ -39,8 +50,21 @@ def _text(value: Any) -> str:
     return str(value)
 
 
+def _formatted(column: str, value: Any,
+               formats: Mapping[str, Any] | None) -> Any:
+    config = (formats or {}).get(column)
+    if not config:
+        return value
+    if column in _DATE_COLUMNS:
+        return display.format_date(value, config.get("date_format"))
+    if column in _AMOUNT_COLUMNS:
+        return display.format_number(value, config.get("number_format"))
+    return value
+
+
 def header_row(document: Mapping[str, Any], extraction: Mapping[str, Any],
-               data: Mapping[str, Any]) -> list[str]:
+               data: Mapping[str, Any],
+               formats: Mapping[str, Any] | None = None) -> list[str]:
     source: dict[str, Any] = {
         "document_id": document.get("id"),
         "filename": document.get("filename"),
@@ -52,12 +76,14 @@ def header_row(document: Mapping[str, Any], extraction: Mapping[str, Any],
         "reasons": extraction.get("reasons"),
     }
     return [
-        _text(source.get(column, data.get(column))) for column in HEADER_COLUMNS
+        _text(_formatted(column, source.get(column, data.get(column)), formats))
+        for column in HEADER_COLUMNS
     ]
 
 
 def line_rows(document: Mapping[str, Any],
-              data: Mapping[str, Any]) -> list[list[str]]:
+              data: Mapping[str, Any],
+              formats: Mapping[str, Any] | None = None) -> list[list[str]]:
     rows = data.get("line_items")
     if not isinstance(rows, Sequence) or isinstance(rows, (str, bytes)):
         return []
@@ -70,15 +96,21 @@ def line_rows(document: Mapping[str, Any],
             _text(data.get("invoice_number")),
             str(index + 1),
             _text(row.get("description")),
-            _text(row.get("quantity")),
-            _text(row.get("unit_price")),
-            _text(row.get("amount")),
+            _text(_formatted("quantity", row.get("quantity"), formats)),
+            _text(_formatted("unit_price", row.get("unit_price"), formats)),
+            _text(_formatted("amount", row.get("amount"), formats)),
             _text(row.get("tax_code")),
         ])
     return out
 
 
-def to_csv(records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]]) -> bytes:
+Formats = Mapping[str, Mapping[str, Any]]
+"""Per extraction id, that version's `field_config`. Resolved by the caller,
+because one export can span several schemas and each brings its own."""
+
+
+def to_csv(records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]],
+           formats: Formats | None = None) -> bytes:
     """One flat file. `record_type` distinguishes a header row from a line row.
 
     UTF-8 with a BOM, because Excel on Windows reads a BOM-less UTF-8 CSV as the
@@ -91,14 +123,17 @@ def to_csv(records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]]) -> by
     blank_header = [""] * len(HEADER_COLUMNS)
     for document, extraction in records:
         data = extraction.get("data") or {}
-        writer.writerow(["header", *header_row(document, extraction, data),
+        config = (formats or {}).get(str(extraction.get("id")))
+        writer.writerow(["header",
+                         *header_row(document, extraction, data, config),
                          *blank_line])
-        for row in line_rows(document, data):
+        for row in line_rows(document, data, config):
             writer.writerow(["line_item", *blank_header, *row[2:]])
     return b"\xef\xbb\xbf" + buffer.getvalue().encode("utf-8")
 
 
-def to_xlsx(records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]]) -> bytes:
+def to_xlsx(records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]],
+            formats: Formats | None = None) -> bytes:
     """Two sheets: Documents and Line items."""
     from openpyxl import Workbook
 
@@ -111,8 +146,9 @@ def to_xlsx(records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]]) -> b
 
     for document, extraction in records:
         data = extraction.get("data") or {}
-        headers.append(header_row(document, extraction, data))
-        for row in line_rows(document, data):
+        config = (formats or {}).get(str(extraction.get("id")))
+        headers.append(header_row(document, extraction, data, config))
+        for row in line_rows(document, data, config):
             lines.append(row)
 
     for sheet in (headers, lines):
@@ -128,11 +164,12 @@ def to_xlsx(records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]]) -> b
 
 
 def render(fmt: str,
-           records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]]) -> bytes:
+           records: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]],
+           formats: Formats | None = None) -> bytes:
     if fmt == "csv":
-        return to_csv(records)
+        return to_csv(records, formats)
     if fmt == "xlsx":
-        return to_xlsx(records)
+        return to_xlsx(records, formats)
     raise ValueError("format must be csv or xlsx")
 
 
