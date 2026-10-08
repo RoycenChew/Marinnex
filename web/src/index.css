@@ -96,6 +96,13 @@
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas,
     monospace;
 
+  /* The wordmark is set in a serif, and the prototype carried that into its
+     headings. Georgia is the one serif present on every target platform, so the
+     public pages pick up the brand's voice without a webfont — which would make
+     a local-first product wait on a CDN. The application stays on Inter: a
+     reviewer reads data, not prose. */
+  --font-display: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+
   /* 12 / 13 / 14 / 16 / 20 / 24, with line heights that hold a 4px rhythm. */
   --text-2xs: 0.6875rem; /* 11px - table micro-labels only */
   --text-2xs--line-height: 1rem;
@@ -253,6 +260,23 @@
     100% { transform: translateY(3rem); }
   }
   .scanline { animation: scan 1.9s ease-in-out infinite alternate; }
+
+  /* The hero's document card is taller than the processing outline, so its
+     sweep is expressed against the card rather than in fixed rems. */
+  @keyframes scan-hero {
+    0%   { top: 0; opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+  .scanline-hero { animation: scan-hero 2.4s ease-in-out infinite; }
+
+  /* Entrances for the hero's staged content: fields and status lines arriving
+     one at a time, so the sequence can be read rather than only seen. */
+  @keyframes flow-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .scanline { animation: none; opacity: 0.35; transform: translateY(1rem); }

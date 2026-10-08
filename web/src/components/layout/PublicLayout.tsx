@@ -36,7 +36,7 @@ export default function PublicLayout() {
       <header className="sticky top-0 z-40 border-b bg-[var(--surface-raised)]/90 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-5">
           <Link to="/" className="flex items-center" aria-label={BRAND.name}>
-            <Logo className="h-6" />
+            <Logo className="h-8" />
           </Link>
 
           <nav aria-label="Main" className="flex items-center gap-1">
