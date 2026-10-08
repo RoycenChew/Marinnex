@@ -15,7 +15,7 @@ npm run dev            # http://localhost:5173
 `.env.development` sets `VITE_USE_MOCKS=true`, so a plain `npm run dev` serves
 the whole app from MSW with no backend and no spend.
 
-Against the real backend, start it first (see `../README_RUN.md`), then:
+Against the real backend, start it first (see `../docs/README_RUN.md`), then:
 
 ```powershell
 $env:VITE_USE_MOCKS = "false"
@@ -86,7 +86,7 @@ Without it, mock mode shows a review screen with three fields and no page.
   9457 code to a sentence, and `problemMessage` also handles FastAPI's array
   `detail`, which is a different shape.
 - **Two renderings are load-bearing** and are described in
-  `../API_CONTRACT_FOR_UI.md`: a scan always comes back `needs_review` with
+  `../docs/API_CONTRACT_FOR_UI.md`: a scan always comes back `needs_review` with
   `scanned_document_review` and is shown as an *info* banner, not an error; and a
   field with nothing printed is absent, never zero, and reads "Not on document".
 

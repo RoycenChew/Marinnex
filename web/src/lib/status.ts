@@ -149,10 +149,6 @@ export function matchMeta(match: string | null | undefined) {
 
 export const GROUNDED_MATCHES = new Set(['exact', 'normalized', 'derived'])
 
-export function isGrounded(match: string | null | undefined): boolean {
-  return GROUNDED_MATCHES.has(match ?? '')
-}
-
 /* --- field status ------------------------------------------------------ */
 
 export const FIELD_STATUS_META: Record<string, { label: string; tone: Tone }> = {

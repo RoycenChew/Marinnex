@@ -10,7 +10,6 @@ files is slow to list on Windows and a nuisance to inspect by hand.
 from __future__ import annotations
 
 import hashlib
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -57,12 +56,6 @@ class BlobStore:
         target = self.path_for(digest)
         if target.is_file():
             target.unlink()
-
-    def clear(self) -> None:
-        """Tests only: never called by the API."""
-        if self.root.is_dir():
-            shutil.rmtree(self.root)
-        self.root.mkdir(parents=True, exist_ok=True)
 
 
 __all__ = ["BlobStore", "sha256_bytes"]

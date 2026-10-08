@@ -1,4 +1,4 @@
-# Optional. The supported path on Windows is the two commands in README_RUN.md
+# Optional. The supported path on Windows is the two commands in docs/README_RUN.md
 # section 6; this exists so the same thing can be run on a server.
 #
 # Build context is the parent directory because the toolkit is a sibling folder

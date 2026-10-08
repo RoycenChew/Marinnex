@@ -397,14 +397,6 @@ class ProjectRepository:
     def test_run(self, run_id: str) -> RowMapping | None:
         return self._one(tables.schema_test_runs, run_id)
 
-    def update_test_run(self, run_id: str, **values: Any) -> None:
-        self._c.execute(
-            update(tables.schema_test_runs)
-            .where(tables.schema_test_runs.c.id == run_id)
-            .where(tables.schema_test_runs.c.project_id == self.project_id)
-            .values(**values)
-        )
-
     # -- extractions ------------------------------------------------------
 
     def next_extraction_version(self, document_id: str, purpose: str) -> int:
@@ -515,14 +507,6 @@ class ProjectRepository:
         values.setdefault("id", ids.new_id("dec"))
         values["extraction_id"] = extraction_id
         return self._insert(tables.decisions, values)
-
-    def latest_decision(self, extraction_id: str) -> RowMapping | None:
-        statement = (
-            scoped(tables.decisions, self.project_id)
-            .where(tables.decisions.c.extraction_id == extraction_id)
-            .order_by(tables.decisions.c.created_at.desc())
-        )
-        return self._c.execute(statement).mappings().first()
 
     def add_correction(self, extraction_id: str, **values: Any) -> str:
         values.setdefault("id", ids.new_id("cor"))

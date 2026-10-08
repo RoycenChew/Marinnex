@@ -40,8 +40,8 @@ reader of this document needs.
 ### Sources
 
 `CLAUDE.md` (architecture, frozen decisions) · `README_RUN.md` · `API_CONTRACT_FOR_UI.md`
-· `openapi.json` · `migrations/` · `fdip/` source · `tests/` · `web/UX_AUDIT.md` ·
-`web/BACKEND_REQUESTS.md` · `web/QUALITY_GATE.md` · `docs/MARINNEX_UX_MASTER_PROMPT.md`
+· `openapi.json` · `migrations/` · `fdip/` source · `tests/` · `docs/archive/UX_AUDIT.md` ·
+`docs/BACKEND_REQUESTS.md` · `docs/QUALITY_GATE.md` · `docs/prompts/MARINNEX_UX_MASTER_PROMPT.md`
 · git history · `../Toolkits_Management` (`REGISTRY.json`, `CHANGELOG.md`) ·
 `../benchmark/bench/reports/PHASE1_DECISION.md` · the owner.
 
@@ -265,7 +265,7 @@ actually been measured.
 | NFR7 | Rate limit per key | 60/min | [ASSUMPTION] |
 | NFR8 | A crash replays at most one stage, never repeats an AI call | — | **Met** [CONFIRMED — `tests/test_reliability.py`] |
 | NFR9 | No document content in logs | — | **Met** [CONFIRMED — `tests/test_security.py`] |
-| NFR10 | UI usable at 390 px; WCAG AA contrast | — | **Met** [CONFIRMED — `web/QUALITY_GATE.md`] |
+| NFR10 | UI usable at 390 px; WCAG AA contrast | — | **Met** [CONFIRMED — `docs/QUALITY_GATE.md`] |
 | NFR11 | Money never crosses the wire as a float | — | **Met** [CONFIRMED — contract tests] |
 
 Targets marked [ASSUMPTION] come from `CLAUDE.md` §3.9 and have not been
@@ -757,7 +757,7 @@ well as what was decided.
 **Frontend:** `npm run build` with zero TypeScript errors; Playwright walkthroughs
 for keyboard, reduced motion and five viewport widths; axe-core reports no
 serious or critical violations across six pages in both themes.
-[CONFIRMED — `web/QUALITY_GATE.md`]
+[CONFIRMED — `docs/QUALITY_GATE.md`]
 
 **Gaps:** no load test; **no CI pipeline** — everything is run by hand; no
 mutation testing; accessibility checks are not automated in CI. [CONFIRMED]
@@ -1051,7 +1051,7 @@ history; and every commit message states what was wrong before the change.
 | I5 | Five open items in `BACKEND_REQUESTS.md` — document search, aggregate counts, export polling, bare-array envelope, image CORS | External integrators | Two are contract-shape changes, so best done before anyone depends on them |
 | I6 | `feat-custom-schema` unmerged | — | Merge when ready |
 
-[CONFIRMED — `web/BACKEND_REQUESTS.md`, `PHASE1_DECISION.md`, git]
+[CONFIRMED — `docs/BACKEND_REQUESTS.md`, `PHASE1_DECISION.md`, git]
 
 ---
 
@@ -1095,7 +1095,7 @@ that proves it, and whether it is actually done.
 | FR22 Usage | `api/routers/admin.py` | `test_end_to_end.py` | Pages and AI cost per key and month | **Done** |
 | NFR8 Crash safety | `pipeline/runner.py` | `test_reliability.py` (7) | At most one stage replayed; no repeated AI call | **Done** |
 | NFR9 No content in logs | `fdip/` logging | `test_security.py` | No document text in any log line | **Done** |
-| NFR10 Accessible UI | `web/src/` | Playwright + axe (`web/QUALITY_GATE.md`) | No serious/critical violations; usable at 390 px | **Done** |
+| NFR10 Accessible UI | `web/src/` | Playwright + axe (`docs/QUALITY_GATE.md`) | No serious/critical violations; usable at 390 px | **Done** |
 | NFR1–3 Performance & accuracy | `benchmark/` | `run_benchmark.py` | p95 < 60 s; < $0.01/doc; silent error < 1% | **Digital only, old prompt** |
 | BR7 PDPA compliance | — | — | Legal verification | **Not started** |
 
@@ -1203,10 +1203,10 @@ first release.**
 ## 48. Appendices
 
 **A. Key files.** `CLAUDE.md` (architecture and frozen decisions) ·
-`README_RUN.md` (how to run it) · `API_CONTRACT_FOR_UI.md` (the contract a UI or
-integrator reads) · `openapi.json` · `web/QUALITY_GATE.md` (UX and accessibility
-evidence) · `web/BACKEND_REQUESTS.md` (open API gaps) ·
-`web/UX_AUDIT.md` · `docs/MARINNEX_UX_MASTER_PROMPT.md` ·
+`docs/README_RUN.md` (how to run it) · `docs/API_CONTRACT_FOR_UI.md` (the contract a UI or
+integrator reads) · `openapi.json` · `docs/QUALITY_GATE.md` (UX and accessibility
+evidence) · `docs/BACKEND_REQUESTS.md` (open API gaps) ·
+`docs/archive/UX_AUDIT.md` · `docs/prompts/MARINNEX_UX_MASTER_PROMPT.md` ·
 `../benchmark/bench/reports/PHASE1_DECISION.md` (the measurement record) ·
 `../Toolkits_Management/REGISTRY.json`.
 
