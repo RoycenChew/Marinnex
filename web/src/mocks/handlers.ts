@@ -37,7 +37,14 @@ export const handlers = [
   // Captured with three of its fields; the builder needs all of them.
   http.get('*/v1/templates', () => HttpResponse.json(buildTemplate())),
   http.post('*/v1/documents', () => getResponse('POST /v1/documents')),
-  http.get('*/v1/documents', () => getResponse('GET /v1/documents')),
+  // `?empty=1` on the page URL returns an empty list, so the first-run welcome
+  // and the empty states can be exercised in mock mode without deleting the
+  // fixtures every other screen depends on.
+  http.get('*/v1/documents', () =>
+    new URLSearchParams(window.location.search).get('empty') === '1'
+      ? HttpResponse.json({ items: [], total: 0 })
+      : getResponse('GET /v1/documents'),
+  ),
   
   // Note: for document processing, we need to return 'processing' status first, then 'completed' after some time if we want to simulate. 
   // Let's just return completed for now, or match on id.

@@ -89,6 +89,7 @@ export function Sidebar({
                   <NavLink
                     to={item.to}
                     end={item.end}
+                    data-tour={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                     title={collapsed ? item.label : undefined}
                     className={({ isActive }) =>
                       cn(

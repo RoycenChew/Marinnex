@@ -19,6 +19,7 @@ import { Page } from '../components/layout/AppLayout'
 import { Button } from '../components/ui/Button'
 import { Card, CardHeader, StatCard } from '../components/ui/Card'
 import {
+  EmptyState,
   TBody,
   TD,
   TH,
@@ -253,9 +254,13 @@ export default function ExportsUsage() {
             <TBody>
               {(usage?.by_key ?? []).length === 0 ? (
                 <tr>
-                  <TD colSpan={4} className="py-6 text-center text-[var(--text-tertiary)]">
-                    Nothing recorded for {MONTH_LABEL(month)}.
-                  </TD>
+                  <td colSpan={4}>
+                    <EmptyState
+                      icon={<Layers className="h-5 w-5" />}
+                      title={`Nothing recorded for ${MONTH_LABEL(month)}`}
+                      description="Usage appears here once a document is processed. Work done in this web app is listed separately from each API key."
+                    />
+                  </td>
                 </tr>
               ) : (
                 (usage?.by_key ?? []).map((row, index) => (
