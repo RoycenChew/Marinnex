@@ -241,11 +241,23 @@ export function LineItemGrid({
       existing[column] = path
       byRow.set(index, existing)
     }
+    /*
+     * A column every row leaves empty is noise: the tax-code column on an
+     * invoice that states no tax codes was a dash repeated down the table,
+     * which reads as data until you look twice. If the schema asked for it and
+     * the document does not show it, the honest table simply has no such
+     * column — the field is still listed in full under its group.
+     */
+    const hasValue = (column: string) =>
+      [...byRow.values()].some((cells) => {
+        const entry = cells[column] ? extraction.fields[cells[column]] : undefined
+        return entry != null && entry.value !== null && entry.value !== ''
+      })
     const preferred = ['description', 'quantity', 'unit_price', 'amount', 'tax_code']
     const ordered = [
       ...preferred.filter((c) => columnSet.has(c)),
       ...[...columnSet].filter((c) => !preferred.includes(c)).sort(),
-    ]
+    ].filter(hasValue)
     return {
       rows: [...byRow.entries()].sort((a, b) => a[0] - b[0]),
       columns: ordered,
@@ -316,9 +328,10 @@ export function LineItemGrid({
                         />
                       )}
                       <span className="truncate text-[var(--text-primary)]">
-                        {entry
-                          ? (displayValue(path, entry) ?? '—')
-                          : '—'}
+                        {/* Blank, not a dash: a surviving column can still have
+                            a gap in one row, and an empty cell says "nothing
+                            here" without looking like a value. */}
+                        {entry ? displayValue(path, entry) : null}
                       </span>
                     </span>
                   </td>

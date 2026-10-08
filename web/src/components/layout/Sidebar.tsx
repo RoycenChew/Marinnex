@@ -148,6 +148,16 @@ export function Sidebar({
 }
 
 function Wordmark({ compact }: { compact?: boolean }) {
+  // Wrapped in a link to the public homepage: in the app the mark was decoration,
+  // and a logo that does nothing is the one thing people still try to click.
+  return (
+    <NavLink to="/" aria-label="Marinnex Lab home" className="flex items-center">
+      <Mark compact={compact} />
+    </NavLink>
+  )
+}
+
+function Mark({ compact }: { compact?: boolean }) {
   // The wordmark is a 505x227 lockup, so at a 24px cap height the name is
   // unreadable. Expanded it gets 36px; collapsed, the mark carries it alone.
   return compact ? (

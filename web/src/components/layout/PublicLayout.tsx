@@ -15,7 +15,11 @@ import { cn } from '../../lib/utils'
  * the time this renders, and nothing here fetches.
  */
 
+/* Home is a tab of its own. Clicking the logo also works, but that is a
+   convention a first-time visitor should not have to know. `end` keeps it from
+   matching every route below it. */
 const NAV = [
+  { to: '/', label: 'Home', end: true },
   { to: '/guide', label: 'Guide' },
   { to: '/trust', label: 'Trust' },
 ]
@@ -44,6 +48,7 @@ export default function PublicLayout() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                end={item.end}
                 className={({ isActive }) =>
                   cn(
                     'rounded-[var(--radius-sm)] px-2.5 py-1.5 text-sm font-medium transition-colors',
