@@ -4,6 +4,7 @@ import type { Extraction, FieldEntry } from '../../api/types'
 import { columnOf, formatAmount, humanisePath, rowIndexOf } from '../../lib/format'
 import { humaniseReason, matchMeta } from '../../lib/status'
 import { cn } from '../../lib/utils'
+import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { VerificationBadge } from '../ui/VerificationBadge'
 
@@ -112,8 +113,20 @@ export function FieldRow({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="text-xs font-medium text-[var(--text-secondary)]">
-          {humanisePath(path)}
+        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-[var(--text-secondary)]">
+            {/* The alias is what this customer calls the field, so it is what
+                they should be reading while they check it. */}
+            {entry.alias ?? humanisePath(path)}
+          </span>
+          {entry.custom && (
+            <Badge
+              tone="brand"
+              title="You defined this field. It is found on the page like any other, but no validator checks that the value means what you intended — worth verifying."
+            >
+              Custom
+            </Badge>
+          )}
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {!absent && (

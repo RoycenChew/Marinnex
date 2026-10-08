@@ -77,8 +77,18 @@ class JobContext:
 
 
 def run_id_for(document_hash: str, purpose: str,
-               schema_version: int | None = None) -> str:
+               schema_version: int | None = None,
+               schema_id: str | None = None) -> str:
+    """The durable identity of one run.
+
+    The schema id belongs in it. Two schemas are both at version 1 on the day
+    they are created, so without it the second one replays the first one's
+    checkpoints against the same document and never calls the model — which is
+    exactly wrong once schemas can differ in their custom fields.
+    """
     parts = [document_hash[:32], PIPELINE_VERSION, purpose]
+    if schema_id is not None:
+        parts.append(schema_id)
     if schema_version is not None:
         parts.append(str(schema_version))
     return ":".join(parts)
@@ -379,7 +389,8 @@ def run_job(context: JobContext, document_hash: str) -> dict[str, Any]:
     Path(context.settings.checkpoint_path).parent.mkdir(parents=True, exist_ok=True)
     store = SqliteCheckpointStore(str(context.settings.checkpoint_path))
     component = DurableStepsComponent(store=store, owner=context.job_id)
-    run_id = run_id_for(document_hash, context.purpose, context.schema_version)
+    run_id = run_id_for(document_hash, context.purpose,
+                        context.schema_version, context.schema_id)
     try:
         result = component.execute(WorkflowRequest(
             run_id=run_id,

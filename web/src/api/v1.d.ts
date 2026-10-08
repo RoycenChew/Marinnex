@@ -510,6 +510,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/schemas/{schema_id}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Version
+         * @description Adjust a draft version's presentation and custom fields.
+         *
+         *     Allowed only while the version is still a draft. Once it has passed a test
+         *     run, or a live key is pinned to it, a customer may be relying on the key
+         *     names it publishes — changing them would break their integration with no
+         *     signal — so from that point a change is a new version, and this returns
+         *     `409 schema_version_frozen` saying so.
+         */
+        patch: operations["patch_version_v1_schemas__schema_id__versions__version__patch"];
+        trace?: never;
+    };
     "/v1/schemas/{schema_id}/versions/{version}/contract": {
         parameters: {
             query?: never;
@@ -546,10 +572,16 @@ export interface paths {
          * Create Test Run
          * @description Score this version against documents already in the project.
          *
-         *     It reuses existing extractions rather than calling the model again: the
-         *     question a test run answers is "does this field selection find values on my
-         *     documents", and the analysis run already has that answer. So a test run costs
-         *     nothing and can be repeated.
+         *     For a template-only version this reuses the analysis extraction and costs
+         *     nothing: the analysis ran the whole template, so it already knows whether
+         *     each selected field was found.
+         *
+         *     A version with **custom fields** cannot be answered that way. The analysis
+         *     never looked for `site_ref`, so reporting "not found" would be reporting
+         *     that nobody asked — which is exactly the false reassurance a test run exists
+         *     to prevent. Those versions are therefore extracted for real, once per
+         *     document, and that does cost a model call. It is the honest price of the
+         *     question being asked.
          */
         post: operations["create_test_run_v1_schemas__schema_id__versions__version__test_runs_post"];
         delete?: never;
@@ -726,6 +758,12 @@ export interface components {
         };
         /** CreateSchema */
         CreateSchema: {
+            /** Custom Fields */
+            custom_fields?: components["schemas"]["CustomFieldIn"][];
+            /** Field Config */
+            field_config?: {
+                [key: string]: components["schemas"]["FieldConfigIn"];
+            };
             /** Fields */
             fields?: string[];
             locale_hints?: components["schemas"]["LocaleHintsIn"];
@@ -749,6 +787,45 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** CustomFieldIn */
+        CustomFieldIn: {
+            /** Description */
+            description: string;
+            /** Hints */
+            hints?: string[];
+            /**
+             * Kind
+             * @default text
+             * @enum {string}
+             */
+            kind: "text" | "number" | "money" | "date";
+            /** Name */
+            name: string;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+        };
+        /** CustomFieldView */
+        CustomFieldView: {
+            /** Description */
+            description: string;
+            /** Hints */
+            hints?: string[];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "number" | "money" | "date";
+            /** Name */
+            name: string;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
         };
         /** DecisionRequest */
         DecisionRequest: {
@@ -873,8 +950,31 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * FieldConfigIn
+         * @description How one field is presented. Nothing here changes what is extracted.
+         */
+        FieldConfigIn: {
+            /** Alias */
+            alias?: string | null;
+            /** Date Format */
+            date_format?: string | null;
+            /** Number Format */
+            number_format?: string | null;
+            /** Order */
+            order?: number | null;
+            /** Required */
+            required?: boolean | null;
+        };
         /** FieldEntry */
         FieldEntry: {
+            /** Alias */
+            alias?: string | null;
+            /**
+             * Custom
+             * @default false
+             */
+            custom: boolean;
             /** Evidence */
             evidence: components["schemas"]["EvidenceView"][];
             /** Match */
@@ -975,9 +1075,28 @@ export interface components {
         };
         /** NewVersion */
         NewVersion: {
+            /** Custom Fields */
+            custom_fields?: components["schemas"]["CustomFieldIn"][];
+            /** Field Config */
+            field_config?: {
+                [key: string]: components["schemas"]["FieldConfigIn"];
+            };
             /** Fields */
             fields: string[];
             locale_hints?: components["schemas"]["LocaleHintsIn"];
+        };
+        /**
+         * PatchVersion
+         * @description Level 1 edits to a draft version. Fields and custom fields are replaced
+         *     wholesale, because a partial merge of a field map is ambiguous.
+         */
+        PatchVersion: {
+            /** Custom Fields */
+            custom_fields?: components["schemas"]["CustomFieldIn"][] | null;
+            /** Field Config */
+            field_config?: {
+                [key: string]: components["schemas"]["FieldConfigIn"];
+            } | null;
         };
         /**
          * PendingAnalysis
@@ -1036,6 +1155,14 @@ export interface components {
         SchemaVersionView: {
             /** Created At */
             created_at?: string | null;
+            /** Custom Fields */
+            custom_fields?: components["schemas"]["CustomFieldView"][];
+            /** Field Config */
+            field_config?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
             /** Fields */
             fields: string[];
             /** Locale Hints */
@@ -1132,6 +1259,10 @@ export interface components {
         TestRunDocument: {
             /** Document Id */
             document_id: string;
+            /** Fields */
+            fields?: {
+                [key: string]: string;
+            };
             /** Fields Ok */
             fields_ok: number;
             /** Fields Total */
@@ -2278,6 +2409,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SchemaCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_version_v1_schemas__schema_id__versions__version__patch: {
+        parameters: {
+            query?: {
+                /** @description Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403. */
+                project_id?: string | null;
+            };
+            header?: never;
+            path: {
+                schema_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVersion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaVersionView"];
                 };
             };
             /** @description Validation Error */

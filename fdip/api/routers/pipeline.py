@@ -90,7 +90,7 @@ async def extract(
         )
     job_id = repo.create_job(
         document_id=document_id,
-        run_id=run_id_for(digest, "pipeline", schema_version),
+        run_id=run_id_for(digest, "pipeline", schema_version, schema_id),
         state=JobState.RECEIVED.value, mode="pipeline",
         schema_id=schema_id, schema_version=schema_version,
     )

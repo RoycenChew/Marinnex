@@ -130,6 +130,13 @@ class FieldEntry(BaseModel):
     match: str
     evidence: list[EvidenceView]
     reasons: list[str]
+    #: Reviewer surface only. The integrator surface re-keys by the alias
+    #: instead; here the path stays the key, because corrections post back by
+    #: path, and this is the label to show beside it.
+    alias: str | None = None
+    #: True for a field the customer defined. It is grounded like any other, but
+    #: no validator checks that the value means what they intended.
+    custom: bool = False
 
 
 class ValidationView(BaseModel):
@@ -210,7 +217,7 @@ class Template(BaseModel):
 
 class CustomFieldView(BaseModel):
     name: str
-    kind: str
+    kind: Literal["text", "number", "money", "date"]
     description: str
     hints: list[str] = Field(default_factory=list)
     required: bool = False

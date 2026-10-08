@@ -25,6 +25,9 @@ export type DocumentStatus =
 
 export type Evidence = Schemas['EvidenceView']
 export type FieldEntry = Schemas['FieldEntry']
+export type FieldConfigInput = Schemas['FieldConfigIn']
+export type CustomFieldInput = Schemas['CustomFieldIn']
+export type CustomFieldView = Schemas['CustomFieldView']
 export type ValidationResult = Schemas['ValidationView']
 export type Extraction = Schemas['Extraction']
 export type PendingAnalysis = Schemas['PendingAnalysis']

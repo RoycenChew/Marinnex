@@ -448,6 +448,12 @@
             "type": "array"
           },
           "kind": {
+            "enum": [
+              "text",
+              "number",
+              "money",
+              "date"
+            ],
             "title": "Kind",
             "type": "string"
           },
@@ -965,6 +971,22 @@
       },
       "FieldEntry": {
         "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "custom": {
+            "default": false,
+            "title": "Custom",
+            "type": "boolean"
+          },
           "evidence": {
             "items": {
               "$ref": "#/components/schemas/EvidenceView"

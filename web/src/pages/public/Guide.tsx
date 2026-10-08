@@ -263,6 +263,60 @@ const CHAPTERS: { title: string; sections: Section[] }[] = [
         ),
       },
       {
+        id: 'custom-fields',
+        title: 'Fields of your own',
+        body: (
+          <>
+            <p>
+              If the template does not read something your invoices carry — a
+              site reference, a project code — you can add it. Name it the way
+              your system reads it, say in a sentence what it is, and list the
+              labels it appears under. "D/O No" and "No. Pesanan" are the same
+              field on two suppliers' invoices, and telling us both helps.
+            </p>
+            <p>
+              Up to ten per version. They come back alongside the template
+              fields, and they are found on the page in exactly the same way: if
+              we cannot point at the words it was read from, the document waits
+              for a person rather than passing the value on.
+            </p>
+            <p>
+              What they do <em>not</em> get is the checking the template fields
+              have. Nothing confirms a field of yours means what you intended the
+              way subtotal and tax are confirmed against the total — there is no
+              arithmetic behind it to check. Run a test on a few of your own
+              documents, read which of your fields were found, and look at the
+              values before you build on them.
+            </p>
+          </>
+        ),
+      },
+      {
+        id: 'output-names',
+        title: 'Naming and ordering what you receive',
+        body: (
+          <>
+            <p>
+              Each field can be given the name your own system uses, put in the
+              order you want, and marked required or optional. Required means a
+              document missing it waits for a person.
+            </p>
+            <p>
+              You can also pick how dates and amounts are formatted. That applies
+              to your spreadsheet exports and to this screen only — the API
+              always sends ISO dates and amounts as plain decimal strings, so
+              your code never has to guess which format someone chose.
+            </p>
+            <p>
+              You can change all of this while a version is still a draft. Once
+              it has passed a test or a key is using it, changing it would break
+              whoever is already relying on those names, so it is saved as a new
+              version instead.
+            </p>
+          </>
+        ),
+      },
+      {
         id: 'exporting',
         title: 'Exporting your data',
         body: (

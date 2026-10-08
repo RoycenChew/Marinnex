@@ -574,13 +574,18 @@ def _extraction_for_test(
         return repo.latest_extraction(document_id, purpose="analysis")
 
     existing = repo.latest_extraction(document_id, purpose="test")
-    if existing is not None and int(existing["schema_version"] or 0) == version:
+    if (existing is not None
+            and str(existing["schema_id"] or "") == schema_id
+            and int(existing["schema_version"] or 0) == version):
+        # Both halves matter: two schemas are both at version 1 on the day they
+        # are created, so comparing the number alone hands one schema's test
+        # result to another.
         return existing
 
     digest = str(document["sha256"])
     job_id = repo.create_job(
         document_id=document_id,
-        run_id=run_id_for(digest, "test", version),
+        run_id=run_id_for(digest, "test", version, schema_id),
         state=JobState.RECEIVED.value, mode="test",
         schema_id=schema_id, schema_version=version,
     )
