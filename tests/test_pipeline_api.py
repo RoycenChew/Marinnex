@@ -232,3 +232,77 @@ def test_a_schema_cannot_select_a_field_the_template_does_not_have(
     })
     assert response.status_code == 422
     assert response.json()["code"] == "invalid_request"
+
+
+def test_an_unused_schema_can_be_purged_but_a_used_one_can_only_be_archived(
+    client: Any,
+) -> None:
+    """Deleting a schema has two meanings, and only one of them is safe.
+
+    A schema nobody has used is clutter: a customer who makes one by mistake
+    should be able to remove it, or the product looks broken. A schema that has
+    produced extractions is a reproducibility record — `schema_id` and
+    `schema_version` are stamped on every extraction (3.8), and purging it would
+    leave finished results citing a schema nobody can look up. So a used schema
+    archives: hidden from the list, closed to new work, still resolvable.
+    """
+    spare = client.post("/v1/schemas", json={
+        "template_id": "tpl_invoice_v1",
+        "name": "Made by mistake",
+        "fields": ["invoice_number", "total"],
+        "locale_hints": {"date_order": "DMY"},
+    })
+    assert spare.status_code == 201, spare.text
+    schema_id = spare.json()["schema_id"]
+
+    # Archiving is the default: a plain DELETE never destroys anything.
+    assert client.delete("/v1/schemas/%s" % schema_id).status_code == 204
+    assert schema_id not in [s["schema_id"] for s in client.get("/v1/schemas").json()]
+    archived = client.get("/v1/schemas?include_archived=true").json()
+    assert [s["schema_id"] for s in archived if s["archived_at"]] == [schema_id]
+
+    # An archived schema is closed to new work, and says so by its code.
+    refused = client.post("/v1/schemas/%s/versions" % schema_id, json={
+        "fields": ["invoice_number"], "locale_hints": {"date_order": "DMY"},
+    })
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "schema_archived"
+
+    # And it comes back, because archiving is not a decision a user has to
+    # get right first time.
+    assert client.post("/v1/schemas/%s/restore" % schema_id).status_code == 200
+    assert schema_id in [s["schema_id"] for s in client.get("/v1/schemas").json()]
+
+    # Nothing has used it, so it can be destroyed outright.
+    assert client.delete("/v1/schemas/%s?purge=true" % schema_id).status_code == 204
+    assert client.get("/v1/schemas/%s" % schema_id).status_code == 404
+
+
+def test_a_schema_an_api_key_still_grants_refuses_to_be_purged(
+    client: Any, run_worker: Any, upload: Any
+) -> None:
+    """The guard that makes offering a hard delete safe.
+
+    Purging a schema an integration is pinned to would break that integration
+    with no warning, so it is refused while anything still points at it, and the
+    message says what — a user who is only told "no" has no next step. Revoking
+    the key removes the reference and the purge goes through.
+    """
+    schema_id, version, _ = _schema_with_passing_test_run(client, run_worker, upload)
+    key = client.post("/v1/api-keys", json={
+        "name": "integration", "mode": "test",
+        "schema_versions": [{"schema_id": schema_id, "version": version}],
+    }).json()
+
+    refused = client.delete("/v1/schemas/%s?purge=true" % schema_id)
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "schema_in_use"
+    assert "key" in refused.json()["detail"]
+
+    # Archiving is always available, which is the point of having both.
+    assert client.delete("/v1/schemas/%s" % schema_id).status_code == 204
+    client.post("/v1/schemas/%s/restore" % schema_id)
+
+    client.delete("/v1/api-keys/%s" % key["id"])
+    assert client.delete("/v1/schemas/%s?purge=true" % schema_id).status_code == 204
+    assert client.get("/v1/schemas/%s" % schema_id).status_code == 404

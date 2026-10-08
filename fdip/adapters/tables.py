@@ -192,6 +192,9 @@ schemas = Table(
     Column("name", String(200), nullable=False),
     Column("document_type", String(32), nullable=False),
     Column("current_version", Integer, nullable=False, default=1),
+    # Set, the schema is hidden from the list and closed to new versions, test
+    # runs and key grants -- but still resolvable, because extractions cite it.
+    Column("archived_at", DateTime, nullable=True),
     _created(),
     UniqueConstraint("project_id", "name", name="uq_schemas_project_name"),
 )

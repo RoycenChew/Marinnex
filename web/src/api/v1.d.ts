@@ -436,7 +436,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Schemas */
+        /**
+         * List Schemas
+         * @description Archived schemas are hidden by default; `?include_archived=true` shows
+         *     them, which is how a user finds one again to restore it.
+         */
         get: operations["list_schemas_v1_schemas_get"];
         put?: never;
         /** Create Schema */
@@ -458,6 +462,31 @@ export interface paths {
         get: operations["get_schema_v1_schemas__schema_id__get"];
         put?: never;
         post?: never;
+        /**
+         * Archive Or Purge Schema
+         * @description Archive a schema, or destroy it outright with `?purge=true`.
+         */
+        delete: operations["archive_or_purge_schema_v1_schemas__schema_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/schemas/{schema_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Schema
+         * @description Bring an archived schema back. Archiving is not a decision a user has to
+         *     get right first time.
+         */
+        post: operations["restore_schema_v1_schemas__schema_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1020,6 +1049,8 @@ export interface components {
         };
         /** SchemaView */
         SchemaView: {
+            /** Archived At */
+            archived_at?: string | null;
             /** Created At */
             created_at?: string | null;
             /** Current Version */
@@ -2055,6 +2086,7 @@ export interface operations {
     list_schemas_v1_schemas_get: {
         parameters: {
             query?: {
+                include_archived?: boolean;
                 /** @description Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403. */
                 project_id?: string | null;
             };
@@ -2121,6 +2153,73 @@ export interface operations {
         };
     };
     get_schema_v1_schemas__schema_id__get: {
+        parameters: {
+            query?: {
+                /** @description Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403. */
+                project_id?: string | null;
+            };
+            header?: never;
+            path: {
+                schema_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_or_purge_schema_v1_schemas__schema_id__delete: {
+        parameters: {
+            query?: {
+                purge?: boolean;
+                /** @description Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403. */
+                project_id?: string | null;
+            };
+            header?: never;
+            path: {
+                schema_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_schema_v1_schemas__schema_id__restore_post: {
         parameters: {
             query?: {
                 /** @description Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403. */

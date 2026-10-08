@@ -149,7 +149,10 @@ and are audit events holding the path, never the value.
 | `GET /templates` | the field catalogue: `{path, label, type, description, required_default, is_array}` |
 | `POST /schemas` | `{template_id, name, fields:[path], locale_hints:{date_order}}` → `{schema_id, version}` |
 | `GET /schemas` · `GET /schemas/{id}` | list, and detail with `versions[]` |
-| `POST /schemas/{id}/versions` | a new **immutable** version |
+| `POST /schemas/{id}/versions` | a new **immutable** version — this is what "edit" means |
+| `DELETE /schemas/{id}` | archive: hidden from `GET /schemas`, closed to new work, reversible |
+| `DELETE /schemas/{id}?purge=true` | destroy it; `409 schema_in_use` with a `references` count while any extraction, job or live key points at it |
+| `POST /schemas/{id}/restore` | unarchive; find archived ones with `GET /schemas?include_archived=true` |
 | `GET /schemas/{id}/versions/{v}/contract` | the JSON Schema of the extraction response — give this to API customers |
 | `POST /schemas/{id}/versions/{v}/test-runs` | `{document_ids:[3..5]}`; **required** before a key may use the version |
 | `GET /test-runs/{id}` | `{status, per_document, passed}` |

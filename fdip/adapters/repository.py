@@ -298,6 +298,57 @@ class ProjectRepository:
         )
         return list(self._c.execute(statement).mappings())
 
+    def set_schema_archived(self, schema_id: str, archived: bool) -> None:
+        self._c.execute(
+            update(tables.schemas)
+            .where(tables.schemas.c.id == schema_id)
+            .where(tables.schemas.c.project_id == self.project_id)
+            .values(archived_at=now() if archived else None)
+        )
+
+    def schema_references(self, schema_id: str) -> dict[str, int]:
+        """What still points at this schema, and how much of it.
+
+        Used to decide whether a hard delete is safe. Extractions and jobs carry
+        `schema_id` as a plain column with no foreign key — it is a
+        reproducibility record (3.8), not a relationship — so nothing in the
+        database stops the row being removed. This is that stop.
+
+        Keys are counted only while live: a revoked key cannot be used, so it is
+        not a reason to keep a schema the user wants gone.
+        """
+        counts: dict[str, int] = {}
+        for label, table in (("extraction", tables.extractions),
+                             ("job", tables.jobs)):
+            total = self._c.execute(
+                select(func.count())
+                .select_from(table)
+                .where(table.c.project_id == self.project_id)
+                .where(table.c.schema_id == schema_id)
+            ).scalar_one()
+            if total:
+                counts[label] = int(total)
+
+        keys = 0
+        for row in self.list_api_keys():
+            if row["revoked_at"] is not None:
+                continue
+            if any(str(grant.get("schema_id")) == schema_id
+                   for grant in (row["schema_versions"] or [])):
+                keys += 1
+        if keys:
+            counts["key"] = keys
+        return counts
+
+    def delete_schema(self, schema_id: str) -> None:
+        """Hard delete. Versions and test runs cascade; call only when
+        `schema_references` is empty."""
+        self._c.execute(
+            delete(tables.schemas)
+            .where(tables.schemas.c.id == schema_id)
+            .where(tables.schemas.c.project_id == self.project_id)
+        )
+
     def update_schema_current_version(self, schema_id: str, version: int) -> None:
         self._c.execute(
             update(tables.schemas)

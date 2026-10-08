@@ -1,14 +1,31 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Plus, Search, Sparkles, Table2 } from 'lucide-react'
+import {
+  Archive,
+  ArchiveRestore,
+  Check,
+  Plus,
+  Search,
+  Sparkles,
+  Table2,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
-import { createSchema, listSchemas, listTemplates } from '../api/queries'
-import type { TemplateField } from '../api/types'
+import {
+  addSchemaVersion,
+  archiveSchema,
+  createSchema,
+  listSchemas,
+  listTemplates,
+  restoreSchema,
+} from '../api/queries'
+import type { SchemaSummary, TemplateField } from '../api/types'
 import { useAuth } from '../context/AuthContext'
 import { Page } from '../components/layout/AppLayout'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import {
   EmptyState,
   TBody,
@@ -26,24 +43,70 @@ import { cn } from '../lib/utils'
 
 export default function Schemas() {
   const { activeProjectId } = useAuth()
+  const queryClient = useQueryClient()
   const [building, setBuilding] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
+  /* Two confirmations, because they are not the same act: archiving is
+     reversible, purging is not, and a single dialog would have to be worded for
+     the worse of the two. */
+  const [pending, setPending] = useState<
+    { schema: SchemaSummary; purge: boolean } | null
+  >(null)
 
   const schemasQuery = useQuery({
-    queryKey: ['schemas', activeProjectId],
-    queryFn: () => listSchemas(activeProjectId),
+    queryKey: ['schemas', activeProjectId, showArchived],
+    queryFn: () => listSchemas(activeProjectId, showArchived),
   })
 
   const schemas = schemasQuery.data ?? []
+
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['schemas'] })
+  }
+
+  const archiveMutation = useMutation({
+    mutationFn: ({ id, purge }: { id: string; purge: boolean }) =>
+      archiveSchema(id, purge, activeProjectId),
+    onSuccess: (_result, variables) => {
+      toast.success(variables.purge ? 'Schema deleted' : 'Schema archived')
+      setPending(null)
+      refresh()
+    },
+    onError: (error) =>
+      // The backend's refusal names what is still holding the schema, so it is
+      // shown as-is rather than replaced with something vaguer.
+      toast.error('Not deleted', { description: problemMessage(error) }),
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => restoreSchema(id, activeProjectId),
+    onSuccess: () => {
+      toast.success('Schema restored')
+      refresh()
+    },
+    onError: (error) =>
+      toast.error('Not restored', { description: problemMessage(error) }),
+  })
 
   return (
     <Page
       title="Schemas"
       description="A schema is the set of fields your integration receives, pinned to a version."
       action={
-        <Button variant="primary" onClick={() => setBuilding(true)}>
-          <Plus className="h-3.5 w-3.5" />
-          New schema
-        </Button>
+        <>
+          <Button
+            variant="ghost"
+            onClick={() => setShowArchived((current) => !current)}
+            aria-pressed={showArchived}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            {showArchived ? 'Hide archived' : 'Show archived'}
+          </Button>
+          <Button variant="primary" onClick={() => setBuilding(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            New schema
+          </Button>
+        </>
       }
     >
       {building && (
@@ -57,13 +120,16 @@ export default function Schemas() {
             <TH>Document type</TH>
             <TH align="right">Current version</TH>
             <TH align="right">Created</TH>
+            <TH width="92px" align="right">
+              <span className="sr-only">Actions</span>
+            </TH>
           </THead>
           {schemasQuery.isLoading ? (
-            <TableSkeleton rows={3} columns={4} />
+            <TableSkeleton rows={3} columns={5} />
           ) : schemas.length === 0 ? (
             <TBody>
               <tr>
-                <td colSpan={4}>
+                <td colSpan={5}>
                   <EmptyState
                     icon={<Table2 className="h-5 w-5" />}
                     title="No schemas yet"
@@ -82,12 +148,15 @@ export default function Schemas() {
               {schemas.map((schema) => (
                 <TR key={schema.schema_id}>
                   <TD>
-                    <Link
-                      to={`/app/schemas/${schema.schema_id}`}
-                      className="font-medium text-[var(--text-primary)] hover:text-[var(--text-brand)]"
-                    >
-                      {schema.name}
-                    </Link>
+                    <span className="flex items-center gap-2">
+                      <Link
+                        to={`/app/schemas/${schema.schema_id}`}
+                        className="font-medium text-[var(--text-primary)] hover:text-[var(--text-brand)]"
+                      >
+                        {schema.name}
+                      </Link>
+                      {schema.archived_at && <Badge tone="neutral">Archived</Badge>}
+                    </span>
                   </TD>
                   <TD className="text-[var(--text-secondary)]">
                     {schema.document_type?.replace(/_/g, ' ') ?? 'invoice'}
@@ -96,12 +165,87 @@ export default function Schemas() {
                   <TD numeric title={schema.created_at ?? undefined} className="text-[var(--text-secondary)]">
                     {formatDate(schema.created_at)}
                   </TD>
+                  <TD align="right">
+                    <span className="flex items-center justify-end gap-0.5">
+                      {schema.archived_at ? (
+                        <>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Restore ${schema.name}`}
+                            title="Restore"
+                            loading={
+                              restoreMutation.isPending &&
+                              restoreMutation.variables === schema.schema_id
+                            }
+                            onClick={() => restoreMutation.mutate(schema.schema_id)}
+                          >
+                            <ArchiveRestore className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Delete ${schema.name} permanently`}
+                            title="Delete permanently"
+                            onClick={() => setPending({ schema, purge: true })}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Archive ${schema.name}`}
+                          title="Archive"
+                          onClick={() => setPending({ schema, purge: false })}
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </span>
+                  </TD>
                 </TR>
               ))}
             </TBody>
           )}
         </Table>
       </TableShell>
+
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(open) => !open && setPending(null)}
+        title={
+          pending?.purge
+            ? `Delete ${pending.schema.name} permanently?`
+            : `Archive ${pending?.schema.name}?`
+        }
+        description={
+          pending?.purge ? (
+            <>
+              This cannot be undone. It is refused if any extraction, job or live
+              API key still refers to this schema — past results have to keep
+              resolving the version they were produced against.
+            </>
+          ) : (
+            <>
+              It disappears from this list and accepts no new versions or test
+              runs. Extractions already produced against it keep working, and you
+              can restore it at any time.
+            </>
+          )
+        }
+        confirmLabel={pending?.purge ? 'Delete permanently' : 'Archive'}
+        destructive={pending?.purge ?? false}
+        loading={archiveMutation.isPending}
+        onConfirm={() =>
+          pending &&
+          archiveMutation.mutate({
+            id: pending.schema.schema_id,
+            purge: pending.purge,
+          })
+        }
+      />
     </Page>
   )
 }
@@ -120,17 +264,27 @@ export function SchemaBuilder({
   onClose,
   suggested = [],
   defaultName = '',
+  existing,
 }: {
   onClose: () => void
   suggested?: string[]
   defaultName?: string
+  /*
+   * Present means "edit": a schema version cannot be changed in place, because
+   * a customer's integration is pinned to it, so editing is adding a version.
+   * The same picker does both — starting from the current version's fields
+   * rather than an empty list, since an edit is usually a small change.
+   */
+  existing?: { schemaId: string; fields: string[]; dateOrder: string }
 }) {
   const { activeProjectId } = useAuth()
   const queryClient = useQueryClient()
   const [name, setName] = useState(defaultName)
-  const [dateOrder, setDateOrder] = useState('DMY')
+  const [dateOrder, setDateOrder] = useState(existing?.dateOrder ?? 'DMY')
   const [search, setSearch] = useState('')
-  const [picked, setPicked] = useState<Set<string>>(new Set(suggested))
+  const [picked, setPicked] = useState<Set<string>>(
+    new Set(existing?.fields ?? suggested),
+  )
 
   const templatesQuery = useQuery({
     queryKey: ['templates', activeProjectId],
@@ -158,35 +312,51 @@ export function SchemaBuilder({
 
   const createMutation = useMutation({
     mutationFn: () =>
-      createSchema(
-        {
-          template_id: template?.id ?? 'tpl_invoice_v1',
-          name: name.trim(),
-          fields: [...picked],
-          locale_hints: { date_order: dateOrder },
-        },
-        activeProjectId,
-      ),
+      existing
+        ? addSchemaVersion(
+            existing.schemaId,
+            {
+              fields: [...picked],
+              locale_hints: { date_order: dateOrder },
+            },
+            activeProjectId,
+          )
+        : createSchema(
+            {
+              template_id: template?.id ?? 'tpl_invoice_v1',
+              name: name.trim(),
+              fields: [...picked],
+              locale_hints: { date_order: dateOrder },
+            },
+            activeProjectId,
+          ),
     onSuccess: (result) => {
-      toast.success(`Created ${name} v${result.version}`)
+      toast.success(
+        existing
+          ? `Saved as version ${result.version}. Test it before a key can use it.`
+          : `Created ${name} v${result.version}`,
+      )
       void queryClient.invalidateQueries({ queryKey: ['schemas'] })
+      void queryClient.invalidateQueries({ queryKey: ['schema'] })
       onClose()
     },
     onError: (error) =>
       toast.error('Not created', { description: problemMessage(error) }),
   })
 
-  const canCreate = name.trim().length > 0 && picked.size > 0
+  const canCreate = (existing ? true : name.trim().length > 0) && picked.size > 0
 
   return (
     <div className="mb-5 rounded-[var(--radius-lg)] border bg-[var(--surface-raised)] shadow-xs">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div>
           <h2 className="text-base font-semibold text-[var(--text-primary)]">
-            New schema
+            {existing ? 'Edit fields' : 'New schema'}
           </h2>
           <p className="text-sm text-[var(--text-secondary)]">
-            Choose the fields your system needs. You can add a version later.
+            {existing
+              ? 'Saved as a new version. The one your integrations already use does not change.'
+              : 'Choose the fields your system needs. You can add a version later.'}
           </p>
         </div>
         <Button variant="ghost" onClick={onClose}>
@@ -195,7 +365,7 @@ export function SchemaBuilder({
       </div>
 
       <div className="grid gap-4 border-b px-4 py-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1">
+        <label className={cn('flex flex-col gap-1', existing && 'hidden')}>
           <span className="text-xs font-medium text-[var(--text-secondary)]">
             Schema name
           </span>
@@ -311,10 +481,16 @@ export function SchemaBuilder({
           disabled={!canCreate}
           loading={createMutation.isPending}
           onClick={() => createMutation.mutate()}
-          title={!canCreate ? 'Name the schema and pick at least one field' : undefined}
+          title={
+            !canCreate
+              ? existing
+                ? 'Pick at least one field'
+                : 'Name the schema and pick at least one field'
+              : undefined
+          }
         >
           <Check className="h-3.5 w-3.5" />
-          Create schema
+          {existing ? 'Save as new version' : 'Create schema'}
         </Button>
       </div>
     </div>

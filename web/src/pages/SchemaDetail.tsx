@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, Copy, FlaskConical, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, FlaskConical, Pencil, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   createTestRun,
@@ -16,6 +16,7 @@ import { Badge } from '../components/ui/Badge'
 import { Card, CardHeader } from '../components/ui/Card'
 import { Skeleton } from '../components/ui/Table'
 import { CodeBlock } from '../components/CodeBlock'
+import { SchemaBuilder } from './Schemas'
 import { formatDate } from '../lib/format'
 import { problemMessage } from '../lib/status'
 import { cn } from '../lib/utils'
@@ -28,6 +29,7 @@ export default function SchemaDetail() {
   const { activeProjectId } = useAuth()
   const queryClient = useQueryClient()
   const [version, setVersion] = useState<number | null>(null)
+  const [editing, setEditing] = useState(false)
   const [picked, setPicked] = useState<Set<string>>(new Set())
 
   const schemaQuery = useQuery({
@@ -85,6 +87,22 @@ export default function SchemaDetail() {
       title={schema?.name ?? 'Schema'}
       description={`${schema?.document_type ?? 'invoice'} · ${schema?.versions?.length ?? 0} version${schema?.versions?.length === 1 ? '' : 's'}`}
       action={
+        <>
+          {/* "Edit" is a new version, because a version an integration is
+              pinned to must not change under it. The wording says so. */}
+          <Button
+            variant="secondary"
+            onClick={() => setEditing(true)}
+            disabled={!activeVersion || !!schema?.archived_at}
+            title={
+              schema?.archived_at
+                ? 'Restore this schema before editing it'
+                : undefined
+            }
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit fields
+          </Button>
         <Link
           to="/app/schemas"
           className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border px-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
@@ -92,8 +110,23 @@ export default function SchemaDetail() {
           <ArrowLeft className="h-3.5 w-3.5" />
           All schemas
         </Link>
+        </>
       }
     >
+      {editing && activeVersion && (
+        <div className="mb-5">
+          <SchemaBuilder
+            onClose={() => setEditing(false)}
+            existing={{
+              schemaId: id,
+              fields: activeVersion.fields ?? [],
+              dateOrder:
+                (activeVersion.locale_hints as { date_order?: string } | null)
+                  ?.date_order ?? 'DMY',
+            }}
+          />
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
         <div className="flex flex-col gap-4">
           <Card padded={false}>

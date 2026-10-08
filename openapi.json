@@ -1284,6 +1284,18 @@
       },
       "SchemaView": {
         "properties": {
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -3282,8 +3294,19 @@
     },
     "/v1/schemas": {
       "get": {
+        "description": "Archived schemas are hidden by default; `?include_archived=true` shows\nthem, which is how a user finds one again to restore it.",
         "operationId": "list_schemas_v1_schemas_get",
         "parameters": [
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
+          },
           {
             "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
             "in": "query",
@@ -3395,6 +3418,68 @@
       }
     },
     "/v1/schemas/{schema_id}": {
+      "delete": {
+        "description": "Archive a schema, or destroy it outright with `?purge=true`.",
+        "operationId": "archive_or_purge_schema_v1_schemas__schema_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schema_id",
+            "required": true,
+            "schema": {
+              "title": "Schema Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purge",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Purge",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Or Purge Schema",
+        "tags": [
+          "schemas"
+        ]
+      },
       "get": {
         "operationId": "get_schema_v1_schemas__schema_id__get",
         "parameters": [
@@ -3449,6 +3534,67 @@
           }
         },
         "summary": "Get Schema",
+        "tags": [
+          "schemas"
+        ]
+      }
+    },
+    "/v1/schemas/{schema_id}/restore": {
+      "post": {
+        "description": "Bring an archived schema back. Archiving is not a decision a user has to\nget right first time.",
+        "operationId": "restore_schema_v1_schemas__schema_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schema_id",
+            "required": true,
+            "schema": {
+              "title": "Schema Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Schema",
         "tags": [
           "schemas"
         ]

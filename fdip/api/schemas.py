@@ -223,6 +223,8 @@ class SchemaView(BaseModel):
     template_id: str
     current_version: int
     created_at: datetime | None = None
+    #: Set means archived: hidden from the default list and closed to new work.
+    archived_at: datetime | None = None
     versions: list[SchemaVersionView] = Field(default_factory=list)
 
 

@@ -109,6 +109,10 @@ class ErrorCode(StrEnum):
     PAGE_LIMIT_EXCEEDED = "page_limit_exceeded"
     SCHEMA_VERSION_NOT_ALLOWED = "schema_version_not_allowed"
     SCHEMA_TEST_RUN_REQUIRED = "schema_test_run_required"
+    # Archived: hidden and closed to new work, but still resolvable.
+    # In use: something still points at it, so it cannot be destroyed.
+    SCHEMA_ARCHIVED = "schema_archived"
+    SCHEMA_IN_USE = "schema_in_use"
     QUOTA_EXCEEDED = "quota_exceeded"
     RATE_LIMITED = "rate_limited"
     NOT_FOUND = "not_found"

@@ -145,6 +145,7 @@ def schema_view(schema: RowMapping, versions: Sequence[RowMapping] = ()) -> dict
         "template_id": str(schema["template_id"]),
         "current_version": int(schema["current_version"]),
         "created_at": _iso(schema["created_at"]),
+        "archived_at": _iso(schema["archived_at"]),
         "versions": [
             {
                 "version": int(row["version"]),

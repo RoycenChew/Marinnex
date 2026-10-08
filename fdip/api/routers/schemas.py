@@ -17,6 +17,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
+from sqlalchemy.engine.row import RowMapping
 
 from fdip.adapters.repository import GlobalRepository, ProjectRepository, now
 from fdip.adapters.seed import INVOICE_TEMPLATE_ID
@@ -112,9 +113,13 @@ def create_schema(
 @router.get("/schemas", response_model=list[SchemaView])
 def list_schemas(
     _: Annotated[Principal, Depends(session_principal)],
+    include_archived: bool = False,
     repo: ProjectRepository = Depends(repository),
 ) -> list[dict[str, Any]]:
-    return [views.schema_view(row) for row in repo.list_schemas()]
+    """Archived schemas are hidden by default; `?include_archived=true` shows
+    them, which is how a user finds one again to restore it."""
+    return [views.schema_view(row) for row in repo.list_schemas()
+            if include_archived or row["archived_at"] is None]
 
 
 @router.get("/schemas/{schema_id}", response_model=SchemaView)
@@ -143,6 +148,7 @@ def add_version(
     schema = repo.schema(schema_id)
     if schema is None:
         raise problems.not_found("schema")
+    _require_active(schema)
     spec = _spec(str(schema["name"]), str(schema["document_type"]),
                  payload.fields, payload.locale_hints)
     version = int(schema["current_version"]) + 1
@@ -272,3 +278,87 @@ def require_tested_version(repo: ProjectRepository, schema_id: str,
 
 
 __all__ = ["router", "require_tested_version"]
+
+
+# --- archive, restore, purge -------------------------------------------------
+#
+# Deleting a schema means two different things and only one of them is safe.
+#
+# A schema that has produced extractions is a reproducibility record: every
+# extraction is stamped with `schema_id` and `schema_version` (3.8), and there is
+# no foreign key to stop the row going, which is exactly why there has to be a
+# check here. Destroying it would leave finished results citing a schema nobody
+# can look up — the same reason corrections write a new version instead of
+# overwriting one.
+#
+# But a schema somebody created by mistake is just clutter, and a product that
+# will not let you remove your own mistake looks broken on the first afternoon.
+#
+# So: `DELETE` archives, always available, reversible. `DELETE ?purge=true`
+# destroys, and only while nothing points at the schema. The refusal names what
+# is holding it, because "no" without a reason leaves the user with no next step.
+
+
+def _require_active(schema: RowMapping) -> None:
+    if schema["archived_at"] is not None:
+        raise problems.Problem(
+            409, ErrorCode.SCHEMA_ARCHIVED.value,
+            "this schema is archived; restore it before making changes",
+        )
+
+
+@router.delete("/schemas/{schema_id}", status_code=204)
+def archive_or_purge_schema(
+    schema_id: str,
+    principal: Annotated[Principal, Depends(session_principal)],
+    purge: bool = False,
+    repo: ProjectRepository = Depends(repository),
+) -> None:
+    """Archive a schema, or destroy it outright with `?purge=true`."""
+    schema = repo.schema(schema_id)
+    if schema is None:
+        raise problems.not_found("schema")
+
+    if not purge:
+        repo.set_schema_archived(schema_id, True)
+        repo.audit(principal.actor, "schema_archived", "schema", schema_id, {})
+        return
+
+    references = repo.schema_references(schema_id)
+    if references:
+        held = ", ".join(
+            "%d %s%s" % (count, label, "" if count == 1 else "s")
+            for label, count in sorted(references.items())
+        )
+        # The remedy depends on what is holding it. A key can be revoked; an
+        # extraction cannot be un-run, and telling someone to revoke a key that
+        # is not the problem sends them off to do something useless.
+        remedy = ("Archive it instead, or revoke the keys that grant it."
+                  if "key" in references and len(references) == 1
+                  else "Archive it instead — past results have to keep "
+                       "resolving the version they were produced against.")
+        raise problems.Problem(
+            409, ErrorCode.SCHEMA_IN_USE.value,
+            "this schema is still referenced by %s, so it cannot be deleted. %s"
+            % (held, remedy),
+            references=references,
+        )
+    repo.delete_schema(schema_id)
+    repo.audit(principal.actor, "schema_deleted", "schema", schema_id, {})
+
+
+@router.post("/schemas/{schema_id}/restore", response_model=SchemaView)
+def restore_schema(
+    schema_id: str,
+    principal: Annotated[Principal, Depends(session_principal)],
+    repo: ProjectRepository = Depends(repository),
+) -> dict[str, Any]:
+    """Bring an archived schema back. Archiving is not a decision a user has to
+    get right first time."""
+    schema = repo.schema(schema_id)
+    if schema is None:
+        raise problems.not_found("schema")
+    repo.set_schema_archived(schema_id, False)
+    repo.audit(principal.actor, "schema_restored", "schema", schema_id, {})
+    restored = repo.schema(schema_id)
+    return views.schema_view(restored, repo.schema_versions(schema_id))  # type: ignore[arg-type]

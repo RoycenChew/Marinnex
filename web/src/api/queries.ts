@@ -197,9 +197,12 @@ export async function listTemplates(projectId: string | null): Promise<Template[
 
 export async function listSchemas(
   projectId: string | null,
+  includeArchived = false,
 ): Promise<SchemaSummary[]> {
   const { data, error } = await apiClient.GET('/v1/schemas', {
-    params: { query: { project_id: project(projectId) } },
+    params: {
+      query: { project_id: project(projectId), include_archived: includeArchived },
+    },
   })
   return unwrap(data, error)
 }
@@ -226,6 +229,38 @@ export async function createSchema(
   const { data, error } = await apiClient.POST('/v1/schemas', {
     params: { query: { project_id: project(projectId) } },
     body,
+  })
+  return unwrap(data, error)
+}
+
+/**
+ * Archive a schema, or destroy it with `purge`.
+ *
+ * Archiving is the safe default and is reversible. A purge is refused with
+ * `409 schema_in_use` while any extraction, job or live key still points at the
+ * schema, because an extraction records the schema version it was produced
+ * against and must stay resolvable.
+ */
+export async function archiveSchema(
+  schemaId: string,
+  purge: boolean,
+  projectId: string | null,
+) {
+  const { error } = await apiClient.DELETE('/v1/schemas/{schema_id}', {
+    params: {
+      path: { schema_id: schemaId },
+      query: { project_id: project(projectId), purge },
+    },
+  })
+  if (error) throw error
+}
+
+export async function restoreSchema(schemaId: string, projectId: string | null) {
+  const { data, error } = await apiClient.POST('/v1/schemas/{schema_id}/restore', {
+    params: {
+      path: { schema_id: schemaId },
+      query: { project_id: project(projectId) },
+    },
   })
   return unwrap(data, error)
 }
