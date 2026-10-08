@@ -86,7 +86,7 @@ export default function SchemaDetail() {
       description={`${schema?.document_type ?? 'invoice'} · ${schema?.versions?.length ?? 0} version${schema?.versions?.length === 1 ? '' : 's'}`}
       action={
         <Link
-          to="/schemas"
+          to="/app/schemas"
           className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border px-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -263,7 +263,7 @@ export default function SchemaDetail() {
           {passed && (
             <div className="border-t px-4 py-3">
               <Link
-                to="/api-keys"
+                to="/app/api-keys"
                 className="text-sm font-medium text-[var(--text-brand)] hover:underline"
               >
                 Create an API key for this version →

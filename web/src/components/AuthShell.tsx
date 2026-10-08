@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react'
-import { AlertCircle, LayoutGrid } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertCircle } from 'lucide-react'
+import { Logo } from './Logo'
+import { BRAND } from '../lib/copy'
 
 /**
  * The frame around sign-in and registration.
@@ -26,14 +29,9 @@ export function AuthShell({
     <div className="flex min-h-screen bg-[var(--surface-page)]">
       <div className="flex w-full flex-col justify-center px-6 py-10 lg:w-[46%] lg:px-14">
         <div className="mx-auto w-full max-w-sm">
-          <span className="mb-7 flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--accent-solid)] text-white">
-              <LayoutGrid className="h-4 w-4" />
-            </span>
-            <span className="text-base font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
-              Marinnex
-            </span>
-          </span>
+          <Link to="/" className="mb-7 inline-flex" aria-label="Marinnex Lab home">
+            <Logo className="h-7" />
+          </Link>
 
           <h1 className="text-xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
             {title}
@@ -63,7 +61,7 @@ export function AuthShell({
             Every value points back at the words it came from.
           </p>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            FDIP reads invoices into structured JSON, then proves it: each field
+            {BRAND.name} reads invoices into structured data, then proves it: each field
             carries the page and the box it was found in, and anything the system
             could not ground goes to a person instead of into your ledger.
           </p>

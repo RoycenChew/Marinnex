@@ -28,27 +28,37 @@
   --color-slate-900: #0f172a;
   --color-slate-950: #020617;
 
-  /* --- primary: indigo ------------------------------------------------ */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-900: #312e81;
+  /* --- primary: Marinnex teal ---------------------------------------- */
+  /*
+   * Built around the brand's own two values: #08627a (the prototype's --brand
+   * and the logo's dominant ink) at 700, and #06485a (--brand-dark) at 800. The
+   * rest of the ramp is interpolated from those, keeping the same hue rather
+   * than borrowing a stock palette. Contrast is checked in both themes by
+   * audit/contrast.mjs.
+   */
+  --color-brand-50: #eff9fb;
+  --color-brand-100: #d5f0f6;
+  --color-brand-200: #afe1ec;
+  --color-brand-300: #78cade;
+  --color-brand-400: #3aabc6;
+  --color-brand-500: #1a8ba7;
+  --color-brand-600: #0d7291;
+  --color-brand-700: #08627a;
+  --color-brand-800: #06485a;
+  --color-brand-900: #0a3b49;
+  --color-brand-950: #04262f;
 
   /* --- semantic: status only ------------------------------------------ */
-  --color-success-50: #ecfdf5;
-  --color-success-500: #10b981;
-  --color-success-600: #059669;
-  --color-success-700: #047857;
-  --color-warning-50: #fffbeb;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
-  --color-warning-700: #b45309;
+  /* Earthier than Tailwind's emerald, matching the prototype's --success. */
+  --color-success-50: #eaf6f0;
+  --color-success-500: #2f9e6c;
+  --color-success-600: #27865a;
+  --color-success-700: #1d6744;
+  /* The prototype's --warning: amber with the neon taken out. */
+  --color-warning-50: #fdf6e8;
+  --color-warning-500: #d4922a;
+  --color-warning-600: #96620f;
+  --color-warning-700: #8d5d18;
   --color-danger-50: #fef2f2;
   --color-danger-500: #ef4444;
   --color-danger-600: #dc2626;
@@ -64,12 +74,14 @@
    * page viewer and the badge beside the field. The same colour must mean the
    * same thing in both places or the review screen teaches the wrong lesson.
    */
-  --color-match-exact: #10b981;
-  --color-match-normalized: #0ea5e9;
-  --color-match-derived: #8b5cf6;
-  --color-match-fuzzy: #f59e0b;
-  --color-match-missing: #94a3b8;
-  --color-match-notfound: #ef4444;
+  --color-match-exact: #27865a;
+  /* Indigo, not sky: with a teal primary a blue "normalized" would read as the
+     brand colour rather than as a state. */
+  --color-match-normalized: #4f46e5;
+  --color-match-derived: #7c5cd6;
+  --color-match-fuzzy: #96620f;
+  --color-match-missing: #6b7a8d;
+  --color-match-notfound: #dc2626;
 
   /* --- radius ---------------------------------------------------------- */
   --radius-xs: 4px;
@@ -165,17 +177,18 @@
     --text-inverted: var(--color-slate-950);
     --text-brand: var(--color-brand-300);
 
-    --accent-solid: var(--color-brand-500);
-    --accent-solid-hover: var(--color-brand-400);
+    /* 600 not 500: white-on-500 measured 3.97:1, under AA. */
+    --accent-solid: var(--color-brand-600);
+    --accent-solid-hover: var(--color-brand-500);
     --accent-subtle: color-mix(in srgb, var(--color-brand-500) 14%, transparent);
 
     /* Lifted so they clear WCAG AA against a dark surface. */
-    --color-match-exact: #34d399;
-    --color-match-normalized: #38bdf8;
-    --color-match-derived: #a78bfa;
-    --color-match-fuzzy: #fbbf24;
-    --color-match-missing: #64748b;
-    --color-match-notfound: #f87171;
+    --color-match-exact: #4ec08a;
+    --color-match-normalized: #8b9cf8;
+    --color-match-derived: #b49df0;
+    --color-match-fuzzy: #e0ad5c;
+    --color-match-missing: #7b8a9c;
+    --color-match-notfound: #f28b8b;
   }
 
   * {
@@ -232,6 +245,27 @@
 }
 
 @layer utilities {
+  /* The one piece of ambient motion in the product: a scanning line over the
+     page outline while a document is being read. It explains the wait rather
+     than decorating it, and it stops entirely under reduced motion. */
+  @keyframes scan {
+    0%   { transform: translateY(-1rem); }
+    100% { transform: translateY(3rem); }
+  }
+  .scanline { animation: scan 1.9s ease-in-out infinite alternate; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scanline { animation: none; opacity: 0.35; transform: translateY(1rem); }
+    /* Nothing in the product should move when the user has asked for stillness.
+       Blanket rule, so a component added later cannot forget. */
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   /* Shorthands for the semantic tokens, so markup stays readable. */
   .bg-page { background-color: var(--surface-page); }
   .bg-raised { background-color: var(--surface-raised); }

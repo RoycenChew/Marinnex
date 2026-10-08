@@ -4,10 +4,10 @@ import {
   ChevronsLeft,
   FileText,
   KeyRound,
-  LayoutGrid,
   PanelLeft,
   Table2,
 } from 'lucide-react'
+import { Logo } from '../Logo'
 import { cn } from '../../lib/utils'
 
 /**
@@ -24,15 +24,15 @@ const GROUPS: {
   {
     label: 'Workspace',
     items: [
-      { to: '/', icon: FileText, label: 'Documents', end: true },
-      { to: '/exports-usage', icon: Activity, label: 'Usage & exports' },
+      { to: '/app', icon: FileText, label: 'Documents', end: true },
+      { to: '/app/usage', icon: Activity, label: 'Usage' },
     ],
   },
   {
     label: 'Developers',
     items: [
-      { to: '/schemas', icon: Table2, label: 'Schemas' },
-      { to: '/api-keys', icon: KeyRound, label: 'API keys' },
+      { to: '/app/schemas', icon: Table2, label: 'Schemas' },
+      { to: '/app/api-keys', icon: KeyRound, label: 'API keys' },
     ],
   },
 ]
@@ -127,23 +127,12 @@ export function Sidebar({
   )
 }
 
-/**
- * The mark: a grid glyph in the brand colour beside the name.
- *
- * Original, and deliberately geometric rather than a document icon — the product
- * turns documents into structured records, and the structure is the point.
- */
 function Wordmark({ compact }: { compact?: boolean }) {
-  return (
-    <span className="flex items-center gap-2">
-      <span className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--accent-solid)] text-white">
-        <LayoutGrid className="h-3.5 w-3.5" />
-      </span>
-      {!compact && (
-        <span className="text-base font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
-          Marinnex
-        </span>
-      )}
-    </span>
+  // The wordmark is a 505x227 lockup, so at a 24px cap height the name is
+  // unreadable. Expanded it gets 36px; collapsed, the mark carries it alone.
+  return compact ? (
+    <Logo variant="mark" className="h-7" />
+  ) : (
+    <Logo variant="full" className="h-9" />
   )
 }

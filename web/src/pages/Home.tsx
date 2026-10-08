@@ -136,7 +136,7 @@ export default function Home() {
   return (
     <Page
       title="Documents"
-      description="Upload an invoice and FDIP extracts it with evidence for every value."
+      description="Upload an invoice. Every value comes back with the words it was read from."
     >
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
@@ -296,7 +296,7 @@ export default function Home() {
                   </TD>
                   <TD>
                     <Link
-                      to={`/documents/${doc.id}/analysis`}
+                      to={`/app/documents/${doc.id}`}
                       className="flex items-center gap-2 font-medium text-[var(--text-primary)] hover:text-[var(--text-brand)]"
                     >
                       <FileText className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />

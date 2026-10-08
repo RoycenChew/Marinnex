@@ -65,27 +65,27 @@ export function CommandPalette({
         </Command.Empty>
 
         <Group heading="Go to">
-          <Item onSelect={() => go('/')} icon={<FileText className="h-4 w-4" />}>
+          <Item onSelect={() => go('/app')} icon={<FileText className="h-4 w-4" />}>
             Documents
           </Item>
-          <Item onSelect={() => go('/schemas')} icon={<Table2 className="h-4 w-4" />}>
+          <Item onSelect={() => go('/app/schemas')} icon={<Table2 className="h-4 w-4" />}>
             Schemas
           </Item>
-          <Item onSelect={() => go('/api-keys')} icon={<KeyRound className="h-4 w-4" />}>
+          <Item onSelect={() => go('/app/api-keys')} icon={<KeyRound className="h-4 w-4" />}>
             API keys
           </Item>
           <Item
-            onSelect={() => go('/exports-usage')}
+            onSelect={() => go('/app/usage')}
             icon={<Activity className="h-4 w-4" />}
           >
-            Usage &amp; exports
+            Usage
           </Item>
         </Group>
 
         <Group heading="Actions">
           <Item
             onSelect={() => {
-              go('/')
+              go('/app')
               // The upload input lives on the Documents page; opening it from
               // here would need a ref across routes, so this navigates and lets
               // the user drop a file.

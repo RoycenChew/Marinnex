@@ -29,7 +29,7 @@ export default function Login() {
         return
       }
       await checkAuth()
-      navigate('/')
+      navigate('/app')
     } catch (caught) {
       setError(problemMessage(caught))
     } finally {

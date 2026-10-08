@@ -83,7 +83,7 @@ export default function Schemas() {
                 <TR key={schema.schema_id}>
                   <TD>
                     <Link
-                      to={`/schemas/${schema.schema_id}`}
+                      to={`/app/schemas/${schema.schema_id}`}
                       className="font-medium text-[var(--text-primary)] hover:text-[var(--text-brand)]"
                     >
                       {schema.name}

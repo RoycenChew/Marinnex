@@ -211,7 +211,7 @@ export default function DocumentAnalysis() {
           {problemMessage(analysisQuery.error)}
         </p>
         <Link
-          to="/"
+          to="/app"
           className="inline-flex h-8 items-center rounded-[var(--radius-sm)] border bg-[var(--surface-raised)] px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
         >
           Back to documents
@@ -226,7 +226,7 @@ export default function DocumentAnalysis() {
       <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-[var(--surface-raised)] px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <Link
-            to="/"
+            to="/app"
             aria-label="Back to documents"
             className="rounded-[var(--radius-sm)] p-1 text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
           >
