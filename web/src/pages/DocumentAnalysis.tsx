@@ -641,7 +641,7 @@ function Banner({
     warning:
       'bg-[var(--color-warning-50)] text-[var(--color-warning-700)] dark:bg-[var(--color-warning-500)]/10 dark:text-[var(--color-warning-500)]',
     danger:
-      'bg-[var(--color-danger-50)] text-[var(--color-danger-700)] dark:bg-[var(--color-danger-500)]/10 dark:text-[var(--color-danger-500)]',
+      'bg-[var(--color-danger-50)] text-[var(--color-danger-700)] dark:bg-[var(--color-danger-500)]/10 dark:text-[var(--color-danger-400)]',
   }
   return (
     <div className={cn('flex shrink-0 items-start gap-2 border-b px-4 py-2', tones[tone])}>

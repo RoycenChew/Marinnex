@@ -14,7 +14,7 @@ const TONES: Record<Tone, string> = {
     'dark:bg-[var(--color-warning-500)]/12 dark:text-[var(--color-warning-500)] dark:ring-[var(--color-warning-500)]/30',
   danger:
     'bg-[var(--color-danger-50)] text-[var(--color-danger-700)] ring-[var(--color-danger-500)]/25 ' +
-    'dark:bg-[var(--color-danger-500)]/12 dark:text-[var(--color-danger-500)] dark:ring-[var(--color-danger-500)]/30',
+    'dark:bg-[var(--color-danger-500)]/12 dark:text-[var(--color-danger-400)] dark:ring-[var(--color-danger-500)]/30',
   info:
     'bg-[var(--color-info-50)] text-[var(--color-info-700)] ring-[var(--color-info-500)]/25 ' +
     'dark:bg-[var(--color-info-500)]/12 dark:text-[var(--color-info-500)] dark:ring-[var(--color-info-500)]/30',

@@ -101,7 +101,7 @@ export default function Trust() {
       </section>
 
       <p className="mt-10 text-sm text-[var(--text-secondary)]">
-        <Link to="/" className="text-[var(--text-brand)] hover:underline">
+        <Link to="/" className="text-[var(--text-brand)] underline">
           Back to the homepage
         </Link>
       </p>

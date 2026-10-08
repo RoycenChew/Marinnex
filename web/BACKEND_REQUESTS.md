@@ -110,3 +110,28 @@ development the UI is on `:5173` while the API is on `:8000`.
 **Workaround:** the review screen fetches the image with
 `credentials: "include"` and renders it from an object URL. Noted only because it
 looks like a backend problem when the image 401s.
+
+### 10. No way to record that a reviewer has checked one field
+
+The workspace now counts how many fields are waiting ("3 fields need your
+review") and walks them with "Review next". A reviewer who has looked at a field
+and is satisfied has no way to say so: `POST /v1/extractions/{id}/corrections`
+records a *change*, and the decision endpoint is all-or-nothing for the document.
+
+So "Mark as checked" is held in React state and is gone on reload. That is
+honest — the tooltip says it is not sent to the server — but on a forty-line
+invoice it means losing your place.
+
+**Request:** a per-field acknowledgement, e.g.
+`POST /v1/extractions/{id}/field-reviews` with `{ "path": "tax_amount" }`,
+returning the updated set. It is an audit event in its own right: "a person
+looked at this value and accepted it" is exactly what a sampled audit of the
+silent error rate would want to know.
+
+**Not urgent:** a reviewer usually finishes a document in one sitting.
+
+### 11. CORS allows `:5173` only
+
+`audit/after.mjs` had to run the dev server on 5173; on 5174 every preflight came
+back `400`. Fine as a default, but worth making a list so two UI processes (mock
+and real) can run side by side.

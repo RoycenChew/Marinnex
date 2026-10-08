@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   Activity,
+  BookOpen,
   ChevronsLeft,
   FileText,
   KeyRound,
@@ -111,6 +112,24 @@ export function Sidebar({
           </div>
         ))}
       </nav>
+
+      {/* Help has to be reachable from inside the product, not only from the
+          public site a signed-in user has no reason to revisit. */}
+      <div className="border-t p-2">
+        <NavLink
+          to="/guide"
+          title={collapsed ? 'Guide' : undefined}
+          className={cn(
+            'flex items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5',
+            'text-sm font-medium text-[var(--text-secondary)]',
+            'hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]',
+            collapsed && 'justify-center px-0',
+          )}
+        >
+          <BookOpen className="h-4 w-4 shrink-0" />
+          {!collapsed && <span className="truncate">Guide and help</span>}
+        </NavLink>
+      </div>
 
       {collapsed && (
         <div className="border-t p-2">

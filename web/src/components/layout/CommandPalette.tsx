@@ -3,6 +3,7 @@ import { Command } from 'cmdk'
 import { useNavigate } from 'react-router-dom'
 import {
   Activity,
+  BookOpen,
   FileText,
   KeyRound,
   Moon,
@@ -79,6 +80,9 @@ export function CommandPalette({
             icon={<Activity className="h-4 w-4" />}
           >
             Usage
+          </Item>
+          <Item onSelect={() => go('/guide')} icon={<BookOpen className="h-4 w-4" />}>
+            Guide and help
           </Item>
         </Group>
 

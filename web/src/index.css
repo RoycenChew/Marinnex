@@ -60,6 +60,10 @@
   --color-warning-600: #96620f;
   --color-warning-700: #8d5d18;
   --color-danger-50: #fef2f2;
+  /* Dark mode needs a lighter red for *text*: danger-500 over a 10% danger
+     wash on the raised surface measured 4.35:1, just under AA. 400 is for
+     foregrounds in the dark theme only. */
+  --color-danger-400: #f87171;
   --color-danger-500: #ef4444;
   --color-danger-600: #dc2626;
   --color-danger-700: #b91c1c;
@@ -152,7 +156,11 @@
 
     --text-primary: var(--color-slate-900);
     --text-secondary: var(--color-slate-600);
-    --text-tertiary: var(--color-slate-500);
+    /* Not slate-500: axe measured it at 4.34:1 on the sunken surface and under
+       the hero's gradient, below AA. This is the lightest value that clears 4.5
+       on every surface in this theme while staying visibly dimmer than
+       secondary. */
+    --text-tertiary: #5b6878;
     --text-inverted: #ffffff;
     --text-brand: var(--color-brand-700);
 
@@ -180,7 +188,9 @@
 
     --text-primary: var(--color-slate-100);
     --text-secondary: var(--color-slate-400);
-    --text-tertiary: var(--color-slate-500);
+    /* slate-500 measured 3.07:1 on the overlay surface. Dimmer than secondary,
+       and over 4.5 on page, raised, sunken and overlay alike. */
+    --text-tertiary: #8695a9;
     --text-inverted: var(--color-slate-950);
     --text-brand: var(--color-brand-300);
 
