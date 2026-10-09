@@ -254,9 +254,18 @@ def health(state: AppState = Depends(get_state),
            connection: Any = Depends(db_connection)) -> dict[str, Any]:
     """Unauthenticated on purpose: a health check behind a login is not one.
 
-    It reports the provider mode, which is operationally important and not
-    sensitive, and no counts that would reveal another tenant's volume.
+    Which means a stranger reads this, so it answers two questions and no
+    others: is the database reachable, and is the worker alive. The provider
+    name and model are gone — operationally interesting, but they tell an
+    outsider what to attack and the operator can read them from the
+    environment. No counts, which would leak volume.
+
+    The worker is reported as the **age** of its last lease rather than a
+    timestamp, because "47 seconds ago" is what an alert threshold compares
+    against, and a clock-skewed timestamp is not.
     """
+    from datetime import UTC, datetime
+
     from sqlalchemy import text
 
     database_ok = True
@@ -264,15 +273,23 @@ def health(state: AppState = Depends(get_state),
         connection.execute(text("select 1"))
     except Exception:
         database_ok = False
-    heartbeat = GlobalRepository(connection).worker_heartbeat()
+
+    heartbeat = None
+    age_seconds = None
+    if database_ok:
+        heartbeat = GlobalRepository(connection).worker_heartbeat()
+        if heartbeat is not None:
+            now = datetime.now(UTC).replace(tzinfo=None)
+            age_seconds = max(0.0, (now - heartbeat).total_seconds())
+
     return {
         "status": "ok" if database_ok else "degraded",
         "database": "ok" if database_ok else "unavailable",
-        "provider_mode": state.settings.provider_mode,
-        "model": state.settings.model,
-        "extract_thinking": state.settings.extract_thinking,
-        "worker_last_lease": None if heartbeat is None else heartbeat.isoformat(),
+        "worker_heartbeat_age_seconds": age_seconds,
         "pipeline_version": _pipeline_version(),
+        # The UI needs this before anyone has signed in, to decide whether to
+        # offer a sign-up link at all.
+        "allow_registration": state.settings.allow_registration,
     }
 
 

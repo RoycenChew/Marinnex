@@ -197,6 +197,18 @@ export async function listTemplates(projectId: string | null): Promise<Template[
   return unwrap(data, error)
 }
 
+/**
+ * The unauthenticated health route.
+ *
+ * The UI needs one fact from it before anyone has signed in: whether this
+ * deployment accepts new accounts. Offering a sign-up link that answers 403 is
+ * worse than not offering one.
+ */
+export async function getHealth() {
+  const { data, error } = await apiClient.GET('/v1/health', {})
+  return unwrap(data, error)
+}
+
 export async function listSchemas(
   projectId: string | null,
   includeArchived = false,

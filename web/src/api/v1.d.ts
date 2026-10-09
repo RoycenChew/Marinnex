@@ -400,8 +400,15 @@ export interface paths {
          * Health
          * @description Unauthenticated on purpose: a health check behind a login is not one.
          *
-         *     It reports the provider mode, which is operationally important and not
-         *     sensitive, and no counts that would reveal another tenant's volume.
+         *     Which means a stranger reads this, so it answers two questions and no
+         *     others: is the database reachable, and is the worker alive. The provider
+         *     name and model are gone — operationally interesting, but they tell an
+         *     outsider what to attack and the operator can read them from the
+         *     environment. No counts, which would leak volume.
+         *
+         *     The worker is reported as the **age** of its last lease rather than a
+         *     timestamp, because "47 seconds ago" is what an alert threshold compares
+         *     against, and a clock-skewed timestamp is not.
          */
         get: operations["health_v1_health_get"];
         put?: never;
@@ -1008,22 +1015,25 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** Health */
+        /**
+         * Health
+         * @description Read by uptime monitors and by a stranger, so it carries nothing that
+         *     names the provider, the model or how much work the system has done.
+         */
         Health: {
+            /**
+             * Allow Registration
+             * @default true
+             */
+            allow_registration: boolean;
             /** Database */
             database: string;
-            /** Extract Thinking */
-            extract_thinking: string;
-            /** Model */
-            model: string;
             /** Pipeline Version */
             pipeline_version: string;
-            /** Provider Mode */
-            provider_mode: string;
             /** Status */
             status: string;
-            /** Worker Last Lease */
-            worker_last_lease?: string | null;
+            /** Worker Heartbeat Age Seconds */
+            worker_heartbeat_age_seconds?: number | null;
         };
         /** JobView */
         JobView: {

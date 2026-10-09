@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Eye, EyeOff } from 'lucide-react'
 import { apiClient } from '../api/client'
+import { getHealth } from '../api/queries'
 import { useAuth } from '../context/AuthContext'
 import { problemMessage } from '../lib/status'
 import { AuthShell, Field } from '../components/AuthShell'
 import { Button } from '../components/ui/Button'
 
 export default function Login() {
+  /* Default to open: if health cannot be reached, hiding the only route to an
+     account would be the worse failure. */
+  const health = useQuery({ queryKey: ['health'], queryFn: getHealth, retry: false })
+  const openRegistration = health.data?.allow_registration !== false
+
   const [email, setEmail] = useState('dev@fdip.local')
   const [password, setPassword] = useState('devpass')
   const [reveal, setReveal] = useState(false)
@@ -42,12 +49,21 @@ export default function Login() {
       title="Sign in"
       subtitle="Evidence-backed extraction for financial documents."
       footer={
-        <>
-          No account yet?{' '}
-          <Link to="/register" className="font-medium text-[var(--text-brand)] hover:underline">
-            Create one
-          </Link>
-        </>
+        openRegistration ? (
+          <>
+            No account yet?{' '}
+            <Link
+              to="/register"
+              className="font-medium text-[var(--text-brand)] hover:underline"
+            >
+              Create one
+            </Link>
+          </>
+        ) : (
+          /* Said plainly rather than by omission: someone who expected to sign
+             up should learn why they cannot, not wonder where the link went. */
+          <>Invite only. Ask the team for an invitation.</>
+        )
       }
       error={error}
     >

@@ -1,0 +1,66 @@
+# Automatic HTTPS: Caddy obtains and renews a certificate for $DOMAIN on its
+# own, provided ports 80 and 443 reach it. Set DOMAIN=localhost to test
+# locally, where Caddy issues an internal certificate instead.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# The API. Everything else is the SPA, so this comes first.
+	handle /v1/* {
+		# Caddy sets X-Forwarded-For itself, which is what the app reads to
+		# rate-limit per caller: without it every request would appear to come
+		# from the container network and one address could exhaust the limit
+		# for everybody. Setting it explicitly here is redundant, and Caddy
+		# says so.
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv/www
+		# A client-side router owns the paths, so anything that is not a file
+		# on disk is the app itself, not a 404.
+		try_files {path} /index.html
+		file_server
+	}
+
+	# 20 MB, matching the application's own limit, so a larger body is refused
+	# at the edge rather than buffered by the API first.
+	#
+	# Measured consequence: a client that keeps sending past the limit has its
+	# connection reset, so curl reports no status rather than a clean 413. The
+	# application returns a proper `file_too_large` problem document for
+	# anything that does reach it. Raising this to, say, 25MB would let every
+	# oversized upload through to that friendlier error at the cost of
+	# buffering them — deliberately not done here.
+	request_body {
+		max_size 20MB
+	}
+
+	header {
+		# One year, because the certificate is automatic and renewal is not a
+		# reason to let someone downgrade the connection.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Self only, plus the page images the review screen draws, which are
+		# served from this same origin as blobs. No inline script, no CDN:
+		# everything the app needs is in the bundle.
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		# Caddy advertises itself by default; there is no reason to.
+		-Server
+	}
+
+	log {
+		output stdout
+		# One `format` only. The filter wraps json, so this is still JSON —
+		# with the query string stripped, because a query can carry a document
+		# id or an idempotency key. The path and the status are what an access
+		# log is for.
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "\?.*" ""
+			}
+		}
+	}
+}

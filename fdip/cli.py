@@ -76,6 +76,46 @@ def cmd_seed(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_create_user(args: argparse.Namespace) -> int:
+    """Create an invited account and its first project.
+
+    Registration is closed in production, so this is how someone gets in. The
+    password is supplied by the caller and printed by nobody: it is theirs to
+    pass on out of band, and an invitation echoed into a terminal scrollback
+    is an invitation in a log.
+    """
+    from fdip.adapters import keys as key_tools
+    from fdip.adapters.repository import GlobalRepository
+
+    settings = _settings(args)
+    engine = create_db_engine(settings.db_url)
+    email = args.email.strip().lower()
+
+    if len(args.password) < key_tools.MIN_PASSWORD_LENGTH:
+        print("the password must be at least %d characters"
+              % key_tools.MIN_PASSWORD_LENGTH, file=sys.stderr)
+        engine.dispose()
+        return 1
+
+    try:
+        with engine.begin() as connection:
+            repo = GlobalRepository(connection)
+            if repo.user_by_email(email) is not None:
+                print("%s already has an account" % email, file=sys.stderr)
+                return 1
+            user_id = repo.create_user(
+                email=email,
+                password_hash=key_tools.hash_password(args.password),
+                is_active=True,
+            )
+            project_id = repo.create_project(owner_id=user_id, name=args.project)
+    finally:
+        engine.dispose()
+
+    print("created %s (project %s)" % (email, project_id))
+    return 0
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     """Run one document through the whole pipeline, in process."""
     path = Path(args.document)
@@ -220,6 +260,13 @@ def build_parser() -> argparse.ArgumentParser:
     usage = sub.add_parser("usage", help="pages and AI cost for a month")
     usage.add_argument("--month", default=None, help="YYYY-MM")
     usage.set_defaults(fn=cmd_usage)
+
+    invite = sub.add_parser("create-user", help="create an invited account")
+    invite.add_argument("--email", required=True)
+    invite.add_argument("--password", required=True,
+                        help="temporary; give it to the person directly")
+    invite.add_argument("--project", default="Default")
+    invite.set_defaults(fn=cmd_create_user)
 
     openapi = sub.add_parser("openapi", help="write openapi.json")
     openapi.add_argument("--out", default="openapi.json")
