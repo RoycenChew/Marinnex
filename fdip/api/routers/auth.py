@@ -21,7 +21,7 @@ from sqlalchemy.engine import Connection
 
 from fdip.adapters import keys as key_tools
 from fdip.adapters.keys import MIN_PASSWORD_LENGTH
-from fdip.adapters.repository import GlobalRepository
+from fdip.adapters.repository import GlobalRepository, ProjectRepository
 from fdip.api import problems
 from fdip.api.deps import (
     AppState,
@@ -159,6 +159,71 @@ def logout(response: Response) -> Response:
     invalidate, so a token already copied elsewhere survives a logout.
     """
     response.delete_cookie(key_tools.SESSION_COOKIE, path="/")
+    response.status_code = 204
+    return response
+
+
+class PasswordChange(BaseModel):
+    """The current password is required even though the session proves identity.
+
+    A session can be borrowed — a shared screen, a stolen cookie. Requiring the
+    current password means taking the account permanently needs more than
+    sitting down at someone's desk.
+    """
+
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=200)
+
+
+@router.post("/auth/password", status_code=204)
+def change_password(
+    payload: PasswordChange,
+    request: Request,
+    response: Response,
+    principal: Annotated[Principal, Depends(session_principal)],
+    state: AppState = Depends(get_state),
+    connection: Connection = Depends(db_connection),
+) -> Response:
+    """Change your own password, without anyone touching the server.
+
+    There is no forgotten-password flow: that needs email, token storage and
+    expiry. The product says so where a user can read it rather than implying a
+    reset link exists. Until then a lockout is recovered by the owner running
+    `deploy/scripts/reset-password.sh`.
+    """
+    from sqlalchemy import update
+
+    from fdip.adapters import tables
+
+    # The same per-address bound as login: guessing the current password here
+    # is as good as guessing it at the sign-in form.
+    limit_by_ip(request, state, "password", state.settings.login_attempts_per_minute)
+
+    # `user_id` is optional on a Principal because an API key has none. This
+    # route is session-only, so it is always set here — checked rather than
+    # asserted, since a wrong answer would be an authentication bypass.
+    if principal.user_id is None:
+        raise problems.unauthenticated("sign in again")
+    user = GlobalRepository(connection).user(principal.user_id)
+    if user is None:  # pragma: no cover - a live session implies a user
+        raise problems.unauthenticated("sign in again")
+
+    if not key_tools.verify_password(payload.current_password,
+                                     str(user["password_hash"])):
+        raise problems.Problem(
+            403, "password_incorrect", "that is not your current password",
+        )
+
+    connection.execute(
+        update(tables.users)
+        .where(tables.users.c.id == user["id"])
+        .values(password_hash=key_tools.hash_password(payload.new_password))
+    )
+    # Neither password reaches the detail, which is the whole point of
+    # recording this: that it happened, and when.
+    ProjectRepository(connection, principal.project_id).audit(
+        principal.actor, "password_changed", "user", str(user["id"]), {},
+    )
     response.status_code = 204
     return response
 

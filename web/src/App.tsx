@@ -14,6 +14,7 @@ import { ThemeProvider, useTheme } from './lib/theme'
 import ApiKeys from './pages/ApiKeys'
 import DocumentAnalysis from './pages/DocumentAnalysis'
 import ExportsUsage from './pages/ExportsUsage'
+import Profile from './pages/Profile'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -106,6 +107,7 @@ export default function App() {
                 <Route path="schemas/:id" element={<SchemaDetail />} />
                 <Route path="api-keys" element={<ApiKeys />} />
                 <Route path="usage" element={<ExportsUsage />} />
+                <Route path="profile" element={<Profile />} />
               </Route>
 
               {/* Links from before the split. */}

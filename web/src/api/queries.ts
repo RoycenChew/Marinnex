@@ -198,6 +198,28 @@ export async function listTemplates(projectId: string | null): Promise<Template[
 }
 
 /**
+ * Change your own password.
+ *
+ * `403 password_incorrect` when the current one is wrong. There is no
+ * forgotten-password flow — see `ProfilePage` for what the UI tells people
+ * about that rather than implying a reset link exists.
+ */
+export async function changePassword(
+  body: { current_password: string; new_password: string },
+) {
+  const { error } = await apiClient.POST('/v1/auth/password', { body })
+  if (error) throw error
+}
+
+/** What has happened on this project, newest first. */
+export async function listActivity(projectId: string | null, limit = 50) {
+  const { data, error } = await apiClient.GET('/v1/activity', {
+    params: { query: { project_id: project(projectId), limit } },
+  })
+  return unwrap(data, error)
+}
+
+/**
  * The unauthenticated health route.
  *
  * The UI needs one fact from it before anyone has signed in: whether this
