@@ -19,11 +19,35 @@ RUN npm ci
 # exist. From /build/src/mocks that path resolves to /samples.
 COPY ${APP_DIR}/samples /samples
 COPY ${APP_DIR}/web ./
-# Same origin in production: Caddy serves the SPA and proxies /v1 to the API,
-# so the client needs no absolute API URL and there is no CORS to configure.
+# Same origin: Caddy serves the SPA and proxies /v1 to the API, so the client
+# needs no absolute API URL and there is no CORS to configure.
+#
+# `src/api/client.ts` reads this with `??`, not `||`, so an **explicitly empty**
+# value means same origin. That distinction is the whole bug this once caused:
+# with `||`, empty is falsy, so the build fell back to the development default,
+# the deployed bundle called http://localhost:8000, and the CSP's
+# `connect-src 'self'` blocked it — "Failed to fetch" on sign-in, with nothing
+# in the server logs, because the request never left the browser.
 ENV VITE_USE_MOCKS=false \
     VITE_API_BASE=""
 RUN npm run build
+
+# Fail the build rather than ship that again.
+#
+# The needle is `localhost:8000` — the development default *with its port* —
+# and not a bare "localhost", because react-router embeds `http://localhost`
+# as an internal placeholder for URL parsing. Grepping for the bare word would
+# fail every build and teach everyone to ignore the check.
+RUN if grep -rq "localhost:8000" dist/; then \
+        echo "BUILD REFUSED: the bundle contains the development API base." >&2; \
+        echo "VITE_API_BASE must be set at build time; empty means same origin." >&2; \
+        exit 1; \
+    fi; \
+    if grep -rq "devpass" dist/; then \
+        echo "BUILD REFUSED: the bundle contains the seeded dev credentials." >&2; \
+        exit 1; \
+    fi; \
+    echo "bundle check: no development API base, no seeded credentials"
 
 
 FROM caddy:2-alpine

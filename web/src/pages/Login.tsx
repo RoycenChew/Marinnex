@@ -15,8 +15,12 @@ export default function Login() {
   const health = useQuery({ queryKey: ['health'], queryFn: getHealth, retry: false })
   const openRegistration = health.data?.allow_registration !== false
 
-  const [email, setEmail] = useState('dev@fdip.local')
-  const [password, setPassword] = useState('devpass')
+  /* The seeded development account, pre-filled so a local run is one click.
+     `import.meta.env.DEV` is false in any built bundle, so a deployed site
+     starts empty — shipping a known credential in the page source would be
+     handing it to everyone who opens the sign-in form. */
+  const [email, setEmail] = useState(import.meta.env.DEV ? 'dev@fdip.local' : '')
+  const [password, setPassword] = useState(import.meta.env.DEV ? 'devpass' : '')
   const [reveal, setReveal] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)

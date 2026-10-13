@@ -106,6 +106,15 @@ and says "invite only" instead of leaving someone to guess.
 It generates a 24-character temporary password and prints it **once**. Pass it
 on directly and ask them to change it. It is never mailed or logged.
 
+When someone locks themselves out — there is no reset email to fall back on:
+
+```bash
+/srv/marinnex/Marinnex/deploy/scripts/reset-password.sh someone@example.com
+```
+
+It changes the stored hash and touches nothing else; the account, its project
+and its documents are the same afterwards.
+
 ---
 
 ## Backups
@@ -139,7 +148,7 @@ arrive, and periodically after that.
 | Setting | Development | Production |
 |---|---|---|
 | `FDIP_ENV` | `development` | `production` |
-| Provider | `mock` is fine | `mock` is **refused at startup** |
+| Provider | `mock` is fine | `mock` is **refused at startup**; use `live`, or `recorded` for a demo |
 | `FDIP_KEY_PEPPER` | required | required |
 | `FDIP_SESSION_SECRET` | generated if absent | **required** |
 | `DEEPSEEK_API_KEY` | optional | **required** |
@@ -208,4 +217,5 @@ FDIP_ENV=development FDIP_PROVIDER_MODE=mock \
 | Documents stay `processing` | the worker is down: `docker compose … ps` |
 | `/v1/health` shows a large `worker_heartbeat_age_seconds` | the same |
 | Server will not start | it will say which variable is missing; that is the design |
+| "Failed to fetch" on sign-in, nothing in the server log | The bundle was built with the development API base, so the browser called `localhost:8000` and the CSP blocked it before the request left. `Dockerfile.web` now fails the build if `localhost:8000` appears in `dist/`. Rebuild the web image. |
 | Out of memory | `free -h`; check the swap file exists and `vm.swappiness` is 10 |
