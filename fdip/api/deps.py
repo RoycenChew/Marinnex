@@ -68,6 +68,29 @@ class RateLimiter:
         return limit - count - 1
 
 
+def client_ip(request: Request) -> str:
+    """The caller's address, trusting one proxy hop.
+
+    Behind Caddy every request arrives from the container network, so without
+    `X-Forwarded-For` a per-IP limit would be one global limit. Only the first
+    entry is read, and only the first: the rest are attacker-supplied.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return getattr(getattr(request, "client", None), "host", "") or "unknown"
+
+
+def limit_by_ip(request: Request, state: AppState, bucket: str,
+                limit: int) -> None:
+    """Rate limit one route per calling address.
+
+    Per IP rather than per account for login, because an attacker trying one
+    password against a thousand accounts never trips a per-account limit.
+    """
+    state.rate_limiter.check("%s:%s" % (bucket, client_ip(request)), limit)
+
+
 @dataclass(frozen=True)
 class Principal:
     project_id: str

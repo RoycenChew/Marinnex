@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from fdip.adapters import sandbox
@@ -33,6 +33,7 @@ from fdip.api.deps import (
     get_state,
     key_principal,
     key_repository,
+    limit_by_ip,
     release_write_lock,
 )
 from fdip.api.routers.schemas import require_tested_version
@@ -46,6 +47,7 @@ MAX_WAIT_SECONDS = 60
 
 @router.post("/extract", status_code=202)
 async def extract(
+    request: Request,
     principal: Annotated[Principal, Depends(key_principal)],
     file: UploadFile = File(...),
     schema_id: str = Form(...),
@@ -62,6 +64,9 @@ async def extract(
         )
     stored = require_tested_version(repo, schema_id, schema_version)
 
+    # The key already has its own per-minute allowance. This is the second
+    # bound: one address cannot exhaust the service with many keys.
+    limit_by_ip(request, state, "extract", state.settings.uploads_per_minute)
     data = await file.read()
     if not data:
         raise problems.unsupported(ErrorCode.EMPTY_FILE.value, "the file is empty")

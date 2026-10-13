@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
+import { getHealth } from '../api/queries'
 import { useAuth } from '../context/AuthContext'
 import { problemMessage } from '../lib/status'
 import { AuthShell, Field } from '../components/AuthShell'
@@ -10,6 +12,11 @@ import { Button } from '../components/ui/Button'
 const MIN_PASSWORD = 8
 
 export default function Register() {
+  // Someone who follows an old link should be told here, not after filling the
+  // form in and being refused.
+  const health = useQuery({ queryKey: ['health'], queryFn: getHealth, retry: false })
+  const openRegistration = health.data?.allow_registration !== false
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [reveal, setReveal] = useState(false)
@@ -55,6 +62,12 @@ export default function Register() {
       }
       error={error}
     >
+      {!openRegistration && (
+        <p className="mb-4 rounded-[var(--radius-md)] border bg-[var(--surface-sunken)] p-3 text-sm text-[var(--text-secondary)]">
+          New accounts are invite only at the moment. Ask the team for an
+          invitation and you will be sent a sign-in.
+        </p>
+      )}
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field label="Email">
           <input
@@ -103,7 +116,7 @@ export default function Register() {
           variant="primary"
           size="lg"
           loading={busy}
-          disabled={tooShort}
+          disabled={tooShort || !openRegistration}
           className="mt-1 w-full"
         >
           {busy ? 'Creating account' : 'Create account'}

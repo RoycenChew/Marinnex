@@ -271,14 +271,23 @@ def test_an_unauthenticated_request_is_401_not_500(anonymous: Any) -> None:
         assert response.json()["code"] == "unauthenticated"
 
 
-def test_health_is_open_and_names_the_provider_mode(anonymous: Any) -> None:
+def test_health_is_open_and_says_nothing_a_stranger_can_use(anonymous: Any) -> None:
+    """It used to name the provider and the model. It no longer does.
+
+    Unauthenticated means a stranger reads it, and the provider name tells them
+    what to attack while telling the operator nothing they cannot read from the
+    environment. What is left answers the only two questions a monitor asks: is
+    the database reachable, and is the worker alive.
+    """
     response = anonymous.get("/v1/health")
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
     assert body["database"] == "ok"
-    assert body["provider_mode"] == "mock"
     assert body["pipeline_version"]
+    assert "worker_heartbeat_age_seconds" in body
+    for gone in ("provider_mode", "model", "extract_thinking"):
+        assert gone not in body, gone
 
 
 def test_startup_refuses_without_a_key_pepper(monkeypatch, tmp_path):

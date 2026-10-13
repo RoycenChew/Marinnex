@@ -28,6 +28,7 @@ from fdip.api.deps import (
     Principal,
     db_connection,
     get_state,
+    limit_by_ip,
     session_principal,
 )
 
@@ -93,6 +94,16 @@ def register(payload: Credentials, request: Request, response: Response,
     A new account gets a project immediately because every other route needs
     one, and an account with no project is a dead end the UI cannot escape.
     """
+    if not state.settings.allow_registration:
+        # 403 with a reason, not a 404 pretending the route is absent: someone
+        # who finds the sign-up page should be told it is closed, not left
+        # guessing whether they typed the address wrong.
+        raise problems.Problem(
+            403, "registration_closed",
+            "New accounts are invite only at the moment. Ask the team for an "
+            "invitation and you will be sent a sign-in.",
+        )
+    limit_by_ip(request, state, "register", state.settings.login_attempts_per_minute)
     repo = GlobalRepository(connection)
     email = str(payload.email).strip().lower()
     if repo.user_by_email(email) is not None:
@@ -116,6 +127,9 @@ def register(payload: Credentials, request: Request, response: Response,
 def login(payload: LoginRequest, request: Request, response: Response,
           state: AppState = Depends(get_state),
           connection: Connection = Depends(db_connection)) -> MeResponse:
+    # Before the password is checked, so a guessing run is cut off whether or
+    # not the accounts it names exist.
+    limit_by_ip(request, state, "login", state.settings.login_attempts_per_minute)
     repo = GlobalRepository(connection)
     user = repo.user_by_email(str(payload.email))
     # One message whether the email is unknown or the password is wrong: the
