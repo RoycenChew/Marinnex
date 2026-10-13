@@ -9,7 +9,18 @@ import type { paths } from './v1'
  * `/v1/v1/auth/me` on every single call. The version lives in the paths; the base
  * is the origin only.
  */
-const API_ORIGIN = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+/*
+ * `??`, not `||`. The production image sets `VITE_API_BASE=""` to mean
+ * "same origin", and an empty string is falsy: with `||` that silently fell
+ * through to the development default, so the deployed bundle called
+ * http://localhost:8000 and the CSP's `connect-src 'self'` blocked it. The
+ * symptom was "Failed to fetch" on sign-in with nothing in the server logs,
+ * because the request never left the browser.
+ *
+ * Unset (development) still falls back; explicitly empty now means same origin,
+ * which is what Caddy serves.
+ */
+const API_ORIGIN = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
 
 export const apiClient = createClient<paths>({
   baseUrl: API_ORIGIN,

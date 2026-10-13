@@ -116,6 +116,49 @@ def cmd_create_user(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reset_password(args: argparse.Namespace) -> int:
+    """Set a new password for an existing account.
+
+    Someone will lock themselves out, and there is no password-reset email to
+    fall back on. This changes the stored hash and touches nothing else: the
+    account, its project and its documents are the same afterwards.
+    """
+    from sqlalchemy import update
+
+    from fdip.adapters import keys as key_tools
+    from fdip.adapters import tables
+    from fdip.adapters.repository import GlobalRepository
+
+    settings = _settings(args)
+    engine = create_db_engine(settings.db_url)
+    email = args.email.strip().lower()
+
+    if len(args.password) < key_tools.MIN_PASSWORD_LENGTH:
+        print("the password must be at least %d characters"
+              % key_tools.MIN_PASSWORD_LENGTH, file=sys.stderr)
+        engine.dispose()
+        return 1
+
+    try:
+        with engine.begin() as connection:
+            user = GlobalRepository(connection).user_by_email(email)
+            if user is None:
+                # Not "created it for you": an unknown address here is almost
+                # always a typo, and inventing an account would hide it.
+                print("no account for %s" % email, file=sys.stderr)
+                return 1
+            connection.execute(
+                update(tables.users)
+                .where(tables.users.c.id == user["id"])
+                .values(password_hash=key_tools.hash_password(args.password))
+            )
+    finally:
+        engine.dispose()
+
+    print("password reset for %s" % email)
+    return 0
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     """Run one document through the whole pipeline, in process."""
     path = Path(args.document)
@@ -267,6 +310,12 @@ def build_parser() -> argparse.ArgumentParser:
                         help="temporary; give it to the person directly")
     invite.add_argument("--project", default="Default")
     invite.set_defaults(fn=cmd_create_user)
+
+    reset = sub.add_parser("reset-password", help="set a new password")
+    reset.add_argument("--email", required=True)
+    reset.add_argument("--password", required=True,
+                       help="temporary; give it to the person directly")
+    reset.set_defaults(fn=cmd_reset_password)
 
     openapi = sub.add_parser("openapi", help="write openapi.json")
     openapi.add_argument("--out", default="openapi.json")
