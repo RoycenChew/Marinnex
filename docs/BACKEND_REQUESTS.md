@@ -49,7 +49,13 @@ extracted but carries `document_type_mismatch` as a reason on a `needs_review`.
 
 ## Still open
 
-### 5. No document search endpoint
+### 5. No document search endpoint — *worked around in the UI*
+
+The ⌘K palette now searches document **names**, client side, over the 200 most
+recent documents — the server's maximum `limit`. It says so on screen when
+there are more, rather than returning nothing for a document the user knows
+exists. A real endpoint is still wanted: filename matching cannot find a
+document by vendor, amount or date, and 200 is not a corpus.
 
 `GET /v1/documents` filters by `status` and paginates by cursor, but there is no
 query by filename, vendor, invoice number or date range.
