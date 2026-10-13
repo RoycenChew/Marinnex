@@ -222,6 +222,24 @@ def schema_view(schema: RowMapping, versions: Sequence[RowMapping] = ()) -> dict
     }
 
 
+def activity_view(row: RowMapping) -> dict[str, Any]:
+    """One audit row, as a user reads it.
+
+    `detail` is passed through because of what it is allowed to contain: ids,
+    codes and field paths, never a value (rule 2.13). That is enforced where
+    events are written, which is why this does not have to filter.
+    """
+    return {
+        "id": str(row["id"]),
+        "actor": str(row["actor"]),
+        "action": str(row["action"]),
+        "object_type": str(row["object_type"]),
+        "object_id": str(row["object_id"]),
+        "detail": row["detail"] or {},
+        "created_at": _iso(row["created_at"]),
+    }
+
+
 def job_view(job: RowMapping) -> dict[str, Any]:
     return {
         "id": str(job["id"]),

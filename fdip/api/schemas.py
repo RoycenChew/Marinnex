@@ -335,6 +335,21 @@ class Usage(BaseModel):
     by_key: list[UsageByKey]
 
 
+class ActivityEvent(BaseModel):
+    id: str
+    actor: str
+    action: str
+    object_type: str
+    object_id: str
+    #: Ids, codes and field paths only — never an extracted value.
+    detail: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+
+
+class ActivityList(BaseModel):
+    items: list[ActivityEvent]
+
+
 class Health(BaseModel):
     status: str
     database: str

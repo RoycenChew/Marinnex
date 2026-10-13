@@ -1,6 +1,72 @@
 {
   "components": {
     "schemas": {
+      "ActivityEvent": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "title": "Detail",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "object_type": {
+            "title": "Object Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "actor",
+          "action",
+          "object_type",
+          "object_id"
+        ],
+        "title": "ActivityEvent",
+        "type": "object"
+      },
+      "ActivityList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityEvent"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ActivityList",
+        "type": "object"
+      },
       "ApiKeyCreated": {
         "description": "The only response that carries the key, and only once.",
         "properties": {
@@ -1300,6 +1366,29 @@
         "title": "NewVersion",
         "type": "object"
       },
+      "PasswordChange": {
+        "description": "The current password is required even though the session proves identity.\n\nA session can be borrowed \u2014 a shared screen, a stolen cookie. Requiring the\ncurrent password means taking the account permanently needs more than\nsitting down at someone's desk.",
+        "properties": {
+          "current_password": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 200,
+            "minLength": 8,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChange",
+        "type": "object"
+      },
       "PatchVersion": {
         "description": "Level 1 edits to a draft version. Fields and custom fields are replaced\nwholesale, because a partial merge of a field map is ambiguous.",
         "properties": {
@@ -2071,6 +2160,70 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/activity": {
+      "get": {
+        "description": "What has happened on this project: uploads, corrections, decisions,\nexports, key changes, password changes.\n\nRead-only, and nothing new is recorded for it \u2014 `audit_events` has been\nwritten all along and had no way out. Scoped like every other query, so a\nproject id that is not yours is a 404 rather than a confirmation that it\nexists. Bounded, because an unlimited list is a way to read the whole table\nin one request.",
+        "operationId": "activity_v1_activity_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activity",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/api-keys": {
       "get": {
         "operationId": "list_api_keys_v1_api_keys_get",
@@ -2341,6 +2494,61 @@
           }
         },
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/password": {
+      "post": {
+        "description": "Change your own password, without anyone touching the server.\n\nThere is no forgotten-password flow: that needs email, token storage and\nexpiry. The product says so where a user can read it rather than implying a\nreset link exists. Until then a lockout is recovered by the owner running\n`deploy/scripts/reset-password.sh`.",
+        "operationId": "change_password_v1_auth_password_post",
+        "parameters": [
+          {
+            "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Which project to act in. Defaults to the caller's first project. A project id that is not yours returns 404, not 403.",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
         "tags": [
           "auth"
         ]

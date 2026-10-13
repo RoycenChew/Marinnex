@@ -30,6 +30,7 @@ from fdip.api.deps import (
     session_principal,
 )
 from fdip.api.schemas import (
+    ActivityList,
     ApiKeyCreated,
     ApiKeyView,
     ExportJob,
@@ -225,6 +226,24 @@ def get_export(
                                    % (export_id, fmt),
         },
     )
+
+
+@router.get("/activity", response_model=ActivityList)
+def activity(
+    _: Annotated[Principal, Depends(session_principal)],
+    limit: int = Query(default=50, ge=1, le=200),
+    repo: ProjectRepository = Depends(repository),
+) -> dict[str, Any]:
+    """What has happened on this project: uploads, corrections, decisions,
+    exports, key changes, password changes.
+
+    Read-only, and nothing new is recorded for it — `audit_events` has been
+    written all along and had no way out. Scoped like every other query, so a
+    project id that is not yours is a 404 rather than a confirmation that it
+    exists. Bounded, because an unlimited list is a way to read the whole table
+    in one request.
+    """
+    return {"items": [views.activity_view(row) for row in repo.audit_events(limit)]}
 
 
 @router.get("/usage", response_model=Usage)

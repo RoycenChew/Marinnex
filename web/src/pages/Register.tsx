@@ -98,6 +98,14 @@ export default function Register() {
             At least {MIN_PASSWORD} characters.
           </span>
         </Field>
+        {/* There is no reset email, so this belongs where the password is
+            chosen — not in a help page nobody reads until they are locked out. */}
+        <p className="rounded-[var(--radius-md)] bg-[var(--color-warning-50)] p-2.5 text-xs leading-relaxed text-[var(--color-warning-700)] dark:bg-[var(--color-warning-500)]/10 dark:text-[var(--color-warning-400)]">
+          <strong>Remember this password.</strong> There is no reset email and no
+          "forgot password" link. If you lose it you cannot sign in. Keep it in a
+          password manager.
+        </p>
+
         <Button
           type="submit"
           variant="primary"

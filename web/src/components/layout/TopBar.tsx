@@ -1,7 +1,9 @@
+import { useNavigate } from 'react-router-dom'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   Check,
   ChevronDown,
+  KeyRound,
   LogOut,
   Menu,
   Monitor,
@@ -34,6 +36,7 @@ export function TopBar({
 }) {
   const { user, projects, activeProjectId, setActiveProjectId, logout } = useAuth()
   const { choice, resolved, setChoice } = useTheme()
+  const navigate = useNavigate()
   const activeProject = projects.find((p) => p.id === activeProjectId)
 
   return (
@@ -168,6 +171,13 @@ export function TopBar({
                 </span>
               </div>
               <DropdownMenu.Separator className="my-1 h-px bg-[var(--border-subtle)]" />
+              <DropdownMenu.Item
+                onSelect={() => navigate('/app/profile')}
+                className={MENU_ITEM}
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+                Your account
+              </DropdownMenu.Item>
               <DropdownMenu.Item onSelect={() => logout()} className={MENU_ITEM}>
                 <LogOut className="h-3.5 w-3.5" />
                 Sign out

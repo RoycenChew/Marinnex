@@ -27,6 +27,7 @@ Session cookie `fdip_session`, httpOnly, `SameSite=Lax`, set by login. Send
 | `POST /auth/login` | `{email, password}` | `401` with one message for any failure |
 | `POST /auth/logout` | — | `204`; clears the cookie |
 | `GET /auth/me` | — | `{"user": {"id", "email"}, "projects": [{"id", "name"}]}` |
+| `POST /auth/password` | `{current_password, new_password}` | `204`; `403 password_incorrect` if the current one is wrong. **There is no forgotten-password flow** — a lockout is recovered by the owner |
 
 Every UI route accepts `?project_id=`, defaulting to the first. A project id that is not
 yours returns **404**, not 403 — deliberate, as is a cross-project document. Dev login:
@@ -172,6 +173,7 @@ rather than scored against the template analysis.
 | `POST /api-keys` | `{name, mode:"live"\|"test", schema_versions, expires_at?}` |
 | `GET /api-keys` · `DELETE /api-keys/{id}` | list by prefix, revoke |
 | `POST /exports` · `GET /exports/{id}` | `{format:"csv"\|"xlsx", document_ids?\|status?}`, then download |
+| `GET /activity?limit=` | what happened on this project, newest first: `{id, actor, action, object_type, object_id, detail, created_at}`. `detail` carries ids, codes and field paths — never a value |
 | `GET /usage?month=YYYY-MM` | `{pages, documents, ai_cost_usd, by_key}` |
 | `GET /jobs/{id}` · `GET /health` | job state; DB, worker heartbeat, provider mode (`/health` needs no auth) |
 
