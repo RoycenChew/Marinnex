@@ -58,9 +58,13 @@ sudo dpkg-reconfigure -f noninteractive unattended-upgrades
 echo "==> Folders"
 sudo mkdir -p "$ROOT/data/blobs" "$ROOT/data/exports"
 sudo chown -R "$USER:$USER" "$ROOT"
-# The container runs as uid 10001 and writes to the bind mount, so the data
-# directory must be owned by that uid on the host.
-sudo chown -R "$SERVICE_UID:$SERVICE_UID" "$ROOT/data"
+# The container runs as uid 10001 and writes to the bind mount, so that uid
+# must own the data directory on the host. The *group* stays yours, because
+# backup-files.sh runs as you and has to read the blobs — owned by 10001 with
+# a 10001 group, the nightly sync would fail with permission denied and the
+# first anyone would know is a missing backup.
+sudo chown -R "$SERVICE_UID:$(id -g)" "$ROOT/data"
+sudo chmod -R u=rwX,g=rX,o= "$ROOT/data"
 chmod 750 "$ROOT"
 
 echo "==> Repositories"

@@ -297,3 +297,57 @@ def test_create_user_makes_an_account_with_a_project(
     assert cli.main(["create-user", "--email", "invited@example.com",
                      "--password", "another-long-password"]) == 1
     assert "already" in capsys.readouterr().err.lower()
+
+
+def test_reset_password_changes_the_hash_and_nothing_else(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch, capsys: Any
+) -> None:
+    """Someone will lock themselves out, and there is no email to reset by.
+
+    It changes the stored hash and leaves the account, its project and its
+    documents alone — a reset that quietly created a second account would be
+    worse than no reset at all.
+    """
+    from fdip import cli
+
+    monkeypatch.setenv("FDIP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("FDIP_DB_URL", "sqlite:///%s/reset.db" % tmp_path.as_posix())
+    monkeypatch.setenv("FDIP_KEY_PEPPER", "a-perfectly-adequate-test-pepper")
+    monkeypatch.setenv("FDIP_PROVIDER_MODE", "mock")
+    monkeypatch.delenv("FDIP_ENV", raising=False)
+    config.override(None)
+
+    assert cli.main(["migrate"]) == 0
+    assert cli.main(["create-user", "--email", "locked@example.com",
+                     "--password", "the-first-password"]) == 0
+    capsys.readouterr()
+
+    from sqlalchemy import create_engine
+
+    from fdip.adapters import keys as key_tools
+    from fdip.adapters.repository import GlobalRepository
+
+    engine = create_engine(config.settings().db_url, future=True)
+    with engine.connect() as conn:
+        before = GlobalRepository(conn).user_by_email("locked@example.com")
+        user_id, old_hash = str(before["id"]), str(before["password_hash"])
+
+    assert cli.main(["reset-password", "--email", "LOCKED@example.com",
+                     "--password", "the-second-password"]) == 0
+    out = capsys.readouterr().out
+    assert "locked@example.com" in out
+    assert "the-second-password" not in out, "a password echoed is a password logged"
+
+    with engine.connect() as conn:
+        after = GlobalRepository(conn).user_by_email("locked@example.com")
+        assert str(after["id"]) == user_id, "it created a new account instead"
+        assert str(after["password_hash"]) != old_hash
+        assert key_tools.verify_password("the-second-password",
+                                         str(after["password_hash"]))
+        assert not key_tools.verify_password("the-first-password",
+                                             str(after["password_hash"]))
+
+    # An unknown address is an error, not a silently created account.
+    assert cli.main(["reset-password", "--email", "nobody@example.com",
+                     "--password", "a-long-enough-password"]) == 1
+    assert "no account" in capsys.readouterr().err.lower()
