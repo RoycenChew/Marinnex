@@ -202,9 +202,11 @@ lives in an extra that also pulls in hundreds of megabytes this project never
 uses. So it has to be installed by name.
 
 **Without `pdfplumber` the API starts, uploads are accepted, and every document
-fails at the parse stage** with "a parser is not installed". `pillow` is needed
-for the scan route. `deploy/Dockerfile.app` installs both by name for the same
-reason, and CI installs `pdfplumber` as its own step.
+fails at the parse stage** — `status=failed`, with the unhelpfully generic code
+`internal`. Measured: the same sample document returns `completed` with the
+package installed and `failed` without it. `pillow` is needed for the scan
+route. `deploy/Dockerfile.app` installs both by name for the same reason, and CI
+installs `pdfplumber` as its own step.
 
 ### Tesseract
 

@@ -33,7 +33,8 @@ The third line is not optional. The toolkit's base install is standard-library
 only by design, and `pdfplumber` lives in an extra that also drags in docling —
 hundreds of megabytes this project never uses — so it has to be installed by
 name. **Without it the API starts, uploads are accepted, and every document
-fails at the parse stage** with "a parser is not installed". `deploy/Dockerfile.app`
+fails at the parse stage** with a generic `internal` error code, which tells you
+nothing about the cause. `deploy/Dockerfile.app`
 installs both by name for the same reason, and CI installs `pdfplumber` as its
 own step.
 
