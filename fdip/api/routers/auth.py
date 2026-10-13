@@ -28,6 +28,7 @@ from fdip.api.deps import (
     Principal,
     db_connection,
     get_state,
+    limit_by_ip,
     session_principal,
 )
 
@@ -93,6 +94,16 @@ def register(payload: Credentials, request: Request, response: Response,
     A new account gets a project immediately because every other route needs
     one, and an account with no project is a dead end the UI cannot escape.
     """
+    if not state.settings.allow_registration:
+        # 403 with a reason, not a 404 pretending the route is absent: someone
+        # who finds the sign-up page should be told it is closed, not left
+        # guessing whether they typed the address wrong.
+        raise problems.Problem(
+            403, "registration_closed",
+            "New accounts are invite only at the moment. Ask the team for an "
+            "invitation and you will be sent a sign-in.",
+        )
+    limit_by_ip(request, state, "register", state.settings.login_attempts_per_minute)
     repo = GlobalRepository(connection)
     email = str(payload.email).strip().lower()
     if repo.user_by_email(email) is not None:
@@ -116,6 +127,9 @@ def register(payload: Credentials, request: Request, response: Response,
 def login(payload: LoginRequest, request: Request, response: Response,
           state: AppState = Depends(get_state),
           connection: Connection = Depends(db_connection)) -> MeResponse:
+    # Before the password is checked, so a guessing run is cut off whether or
+    # not the accounts it names exist.
+    limit_by_ip(request, state, "login", state.settings.login_attempts_per_minute)
     repo = GlobalRepository(connection)
     user = repo.user_by_email(str(payload.email))
     # One message whether the email is unknown or the password is wrong: the
@@ -147,22 +161,6 @@ def logout(response: Response) -> Response:
     response.delete_cookie(key_tools.SESSION_COOKIE, path="/")
     response.status_code = 204
     return response
-
-
-#: Guessing the current password through this route is as good as guessing it
-#: at the login form, so it gets a tighter bound than the general per-key limit.
-PASSWORD_ATTEMPTS_PER_MINUTE = 10
-
-
-def _limit_password_attempts(request: Request, state: AppState) -> None:
-    """Per calling address, because an attacker with a borrowed session would
-    otherwise have unlimited guesses at the password that locks them in."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    # Only the first entry, and only the first: the rest are caller-supplied.
-    address = (forwarded.split(",")[0].strip()
-               or getattr(getattr(request, "client", None), "host", "")
-               or "unknown")
-    state.rate_limiter.check("password:" + address, PASSWORD_ATTEMPTS_PER_MINUTE)
 
 
 class PasswordChange(BaseModel):
@@ -197,7 +195,9 @@ def change_password(
 
     from fdip.adapters import tables
 
-    _limit_password_attempts(request, state)
+    # The same per-address bound as login: guessing the current password here
+    # is as good as guessing it at the sign-in form.
+    limit_by_ip(request, state, "password", state.settings.login_attempts_per_minute)
 
     # `user_id` is optional on a Principal because an API key has none. This
     # route is session-only, so it is always set here — checked rather than

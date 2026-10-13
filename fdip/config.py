@@ -57,6 +57,14 @@ class Settings:
     monthly_ceiling_usd: float
     cors_origins: tuple[str, ...]
     dev_seed: bool
+    environment: str = "development"
+    """`production` tightens several defaults that are deliberately loose
+    locally. See `is_production`."""
+    allow_registration: bool = True
+    """False is the launch posture: accounts are created by invitation, and
+    `/auth/register` answers 403 rather than pretending not to exist."""
+    login_attempts_per_minute: int = 10
+    uploads_per_minute: int = 30
     max_upload_bytes: int = 20 * 1024 * 1024
     max_pages: int = 25
     sandbox_timeout_seconds: float = 60.0
@@ -65,6 +73,10 @@ class Settings:
     rate_limit_per_minute: int = 60
     extract_max_tokens: int = 16000
     deepseek_api_key: str = field(default="", repr=False)
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
 
     def thinking_for_route(self, route: str) -> str:
         """`on` for a text layer, `repair` for a scan, unless overridden.
@@ -122,6 +134,31 @@ def load_settings(env_file: str | os.PathLike[str] | None = ".env") -> Settings:
             "A generated pepper would invalidate every API key already issued. "
             "Copy .env.example to .env and set one."
         )
+
+    environment = os.environ.get("FDIP_ENV", "development").strip().lower()
+    if environment == "production":
+        # Refuse at startup rather than degrade at runtime. Each of these has a
+        # default that is right locally and wrong in front of real users.
+        if mode == "mock":
+            raise ValueError(
+                "FDIP_PROVIDER_MODE=mock is forbidden when FDIP_ENV=production: "
+                "mock mode answers from canned fixtures, which would serve "
+                "invented data that looks exactly like a real extraction"
+            )
+        if len(session_secret) < 16:
+            raise ValueError(
+                "FDIP_SESSION_SECRET must be set to at least 16 characters in "
+                "production; a generated one logs every user out on restart"
+            )
+        if not os.environ.get("DEEPSEEK_API_KEY"):
+            raise ValueError(
+                "DEEPSEEK_API_KEY is required when FDIP_ENV=production"
+            )
+        if not os.environ.get("FDIP_AI_MONTHLY_CEILING_USD"):
+            raise ValueError(
+                "FDIP_AI_MONTHLY_CEILING_USD is required when "
+                "FDIP_ENV=production: without it the bill is unbounded"
+            )
     if mode == "live":
         # The session secret matters less: a generated one logs users out on
         # restart, which is recoverable. In live mode it is still required.
@@ -171,6 +208,11 @@ def load_settings(env_file: str | os.PathLike[str] | None = ".env") -> Settings:
         cors_origins=origins,
         dev_seed=_bool("FDIP_DEV_SEED", mode != "live"),
         deepseek_api_key=os.environ.get("DEEPSEEK_API_KEY", ""),
+        environment=environment,
+        allow_registration=_bool("FDIP_ALLOW_REGISTRATION", True),
+        login_attempts_per_minute=int(
+            os.environ.get("FDIP_LOGIN_ATTEMPTS_PER_MINUTE", "10")),
+        uploads_per_minute=int(os.environ.get("FDIP_UPLOADS_PER_MINUTE", "30")),
     )
 
 

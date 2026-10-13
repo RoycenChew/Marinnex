@@ -351,13 +351,16 @@ class ActivityList(BaseModel):
 
 
 class Health(BaseModel):
+    """Read by uptime monitors and by a stranger, so it carries nothing that
+    names the provider, the model or how much work the system has done."""
+
     status: str
     database: str
-    provider_mode: str
-    model: str
-    extract_thinking: str
-    worker_last_lease: str | None = None
+    #: None means the worker has never taken a lease. A large number means it
+    #: has stopped — the thing an alert should watch.
+    worker_heartbeat_age_seconds: float | None = None
     pipeline_version: str
+    allow_registration: bool = True
 
 
 __all__ = [

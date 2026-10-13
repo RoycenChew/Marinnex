@@ -1,0 +1,133 @@
+# Production stack for one t3.small (2 vCPU, 2 GB) in ap-southeast-5.
+#
+# Run it from the parent of this repository, so the build context contains both
+# checkouts:
+#
+#     cd /srv/marinnex
+#     docker compose -f Marinnex/deploy/docker-compose.prod.yml --env-file .env up -d
+#
+# Memory limits add up to 1.7 GB, leaving headroom on a 2 GB box; the 2 GB swap
+# file that setup-server.sh creates absorbs a spike rather than inviting the
+# OOM killer to choose a victim for us.
+name: marinnex
+
+x-logging: &logging
+  driver: json-file
+  options:
+    # Without a cap, a crash loop fills the disk and takes the database with
+    # it. Three files of 10 MB is a few hours of traffic at this size.
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  caddy:
+    build:
+      context: ../..
+      dockerfile: ${APP_DIR:-Marinnex}/deploy/Dockerfile.web
+      args:
+        APP_DIR: ${APP_DIR:-Marinnex}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: "${DOMAIN:?set DOMAIN}"
+    volumes:
+      # Certificates and the ACME account key. Losing these means re-issuing
+      # on every restart, which Let's Encrypt rate-limits.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  api:
+    build:
+      context: ../..
+      dockerfile: ${APP_DIR:-Marinnex}/deploy/Dockerfile.app
+      args:
+        APP_DIR: ${APP_DIR:-Marinnex}
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      # Production is the default; a local verification run overrides it, which
+      # is the only way to exercise this stack without a provider key.
+      FDIP_ENV: ${FDIP_ENV:-production}
+      FDIP_DATA_DIR: /data
+      FDIP_DB_URL: sqlite:////data/fdip.db
+    volumes:
+      - ${DATA_DIR:-/srv/marinnex/data}:/data
+    expose:
+      - "8000"
+    healthcheck:
+      # The app's own health route: database reachable and worker heartbeat.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: ${APP_DIR:-Marinnex}/deploy/Dockerfile.app
+      args:
+        APP_DIR: ${APP_DIR:-Marinnex}
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      # Production is the default; a local verification run overrides it, which
+      # is the only way to exercise this stack without a provider key.
+      FDIP_ENV: ${FDIP_ENV:-production}
+      FDIP_DATA_DIR: /data
+      FDIP_DB_URL: sqlite:////data/fdip.db
+    volumes:
+      - ${DATA_DIR:-/srv/marinnex/data}:/data
+    command: ["python", "-m", "fdip.worker"]
+    healthcheck:
+      # The worker serves nothing, so liveness is "the process can still
+      # import its own entry point and reach the database".
+      test: ["CMD", "python", "-c", "import sqlite3;sqlite3.connect('/data/fdip.db').execute('select 1')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          # OCR and a 300 DPI render are the memory peak in the whole system.
+          memory: 768M
+
+  litestream:
+    # Pinned: 0.5.x is the first line with the S3 behaviour this config uses.
+    image: litestream/litestream:0.5.2
+    restart: unless-stopped
+    environment:
+      BACKUP_BUCKET: "${BACKUP_BUCKET:?set BACKUP_BUCKET}"
+    volumes:
+      - ${DATA_DIR:-/srv/marinnex/data}:/data
+      - ./litestream.yml:/etc/litestream.yml:ro
+    command: ["replicate", "-config", "/etc/litestream.yml"]
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -31,6 +31,7 @@ from fdip.api.deps import (
     AppState,
     Principal,
     get_state,
+    limit_by_ip,
     repository,
     session_principal,
 )
@@ -60,6 +61,9 @@ async def upload(
     state: AppState = Depends(get_state),
     repo: ProjectRepository = Depends(repository),
 ) -> dict[str, Any]:
+    # Before the body is read: a flood of 20 MB uploads should be refused
+    # before it is buffered, not after.
+    limit_by_ip(request, state, "upload", state.settings.uploads_per_minute)
     data = await file.read()
     if not data:
         raise problems.unsupported(ErrorCode.EMPTY_FILE.value, "the file is empty")

@@ -1,0 +1,21 @@
+# Continuous replication of the SQLite database to S3.
+#
+# No access keys: the EC2 instance role supplies credentials, so there is
+# nothing here to leak and nothing to rotate. The role needs s3:PutObject,
+# s3:GetObject, s3:DeleteObject and s3:ListBucket on this prefix.
+#
+# This replicates the database only. Uploaded files are a separate concern —
+# see scripts/backup-files.sh, which syncs them nightly.
+dbs:
+  - path: /data/fdip.db
+    replicas:
+      - type: s3
+        bucket: ${BACKUP_BUCKET}
+        path: litestream/fdip.db
+        region: ap-southeast-5
+        # A snapshot a day with WAL frames in between: recovery costs one
+        # snapshot plus at most a day of frames.
+        snapshot-interval: 24h
+        # Enough history to notice a problem over a weekend and still restore
+        # to a point before it.
+        retention: 168h

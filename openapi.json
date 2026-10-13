@@ -1150,49 +1150,40 @@
         "type": "object"
       },
       "Health": {
+        "description": "Read by uptime monitors and by a stranger, so it carries nothing that\nnames the provider, the model or how much work the system has done.",
         "properties": {
+          "allow_registration": {
+            "default": true,
+            "title": "Allow Registration",
+            "type": "boolean"
+          },
           "database": {
             "title": "Database",
-            "type": "string"
-          },
-          "extract_thinking": {
-            "title": "Extract Thinking",
-            "type": "string"
-          },
-          "model": {
-            "title": "Model",
             "type": "string"
           },
           "pipeline_version": {
             "title": "Pipeline Version",
             "type": "string"
           },
-          "provider_mode": {
-            "title": "Provider Mode",
-            "type": "string"
-          },
           "status": {
             "title": "Status",
             "type": "string"
           },
-          "worker_last_lease": {
+          "worker_heartbeat_age_seconds": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "number"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Worker Last Lease"
+            "title": "Worker Heartbeat Age Seconds"
           }
         },
         "required": [
           "status",
           "database",
-          "provider_mode",
-          "model",
-          "extract_thinking",
           "pipeline_version"
         ],
         "title": "Health",
@@ -3714,7 +3705,7 @@
     },
     "/v1/health": {
       "get": {
-        "description": "Unauthenticated on purpose: a health check behind a login is not one.\n\nIt reports the provider mode, which is operationally important and not\nsensitive, and no counts that would reveal another tenant's volume.",
+        "description": "Unauthenticated on purpose: a health check behind a login is not one.\n\nWhich means a stranger reads this, so it answers two questions and no\nothers: is the database reachable, and is the worker alive. The provider\nname and model are gone \u2014 operationally interesting, but they tell an\noutsider what to attack and the operator can read them from the\nenvironment. No counts, which would leak volume.\n\nThe worker is reported as the **age** of its last lease rather than a\ntimestamp, because \"47 seconds ago\" is what an alert threshold compares\nagainst, and a clock-skewed timestamp is not.",
         "operationId": "health_v1_health_get",
         "responses": {
           "200": {
