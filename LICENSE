@@ -1,7 +1,7 @@
 Copyright (c) 2026 Royce Chew. All rights reserved.
 
-This repository is public so that the work can be read, reviewed and assessed.
-Being readable is not a grant of rights.
+If you can read this repository, you were given access deliberately, so that
+the work can be read, reviewed and assessed. Access is not a grant of rights.
 
 No licence is granted to use, copy, modify, merge, publish, distribute,
 sublicense, sell, host or deploy this software or any part of it, whether for
@@ -10,8 +10,8 @@ the copyright holder.
 
 You may read the source and clone the repository to evaluate it, and you may
 run it locally for that evaluation. Anything beyond that — including operating
-it for yourself or for anyone else, and including deriving a work from it —
-requires written permission.
+it for yourself or for anyone else, redistributing it, and deriving a work from
+it — requires written permission.
 
 The installation, configuration and deployment instructions in this repository
 are documentation, not a licence. They exist so that a reader can verify the
@@ -21,4 +21,4 @@ account of how to run it.
 Third-party dependencies are governed by their own licences. This notice covers
 only the original work in this repository.
 
-To ask about a licence: open an issue on the repository.
+To ask about a licence: contact the copyright holder.

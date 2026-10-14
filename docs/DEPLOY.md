@@ -3,9 +3,14 @@
 One Ubuntu 24.04 server, four containers, a SQLite file replicated to S3. The
 whole thing is meant to fit on a t3.small and be re-deployed with one command.
 
-Everything here is **packaging only** — nothing has been deployed yet. The
-release blockers are in `PROJECT_DOCUMENTATION.md` §42; this document is how
-you ship once they are cleared.
+There is a live deployment at **<https://marinnex.duckdns.org/>**, invite only.
+It is **not updated automatically**: it changes only when an operator runs
+`deploy.sh` on the server, so it can lag behind `main`. Check `/v1/health` for
+the `pipeline_version` it is actually running before assuming a change is on it.
+
+The release blockers in `PROJECT_DOCUMENTATION.md` §42 are **not cleared** — no
+malware scanning, no retention policy, no PDPA review, no privacy notice. That
+gap is the difference between a deployment and a launch.
 
 ---
 
@@ -55,14 +60,17 @@ images would be two things to keep in step.
 ## First time
 
 ```bash
-# On the server, as a user with sudo:
-curl -fsSL https://raw.githubusercontent.com/<you>/Marinnex/main/deploy/setup-server.sh -o setup-server.sh
-bash setup-server.sh
-# log out and back in, so the docker group applies
-
+# On the server, as a user with sudo. The repository is private, so clone it
+# first: a plain curl of a raw file gets a 404, not a script. That needs a
+# deploy key or a fine-grained token on the box, and deploy.sh runs `git pull`
+# on every release, so it has to keep working unattended.
+sudo mkdir -p /srv/marinnex && sudo chown "$USER" /srv/marinnex
 git clone <marinnex-url>                      /srv/marinnex/Marinnex
 git clone https://github.com/RoycenChew/Toolkits_Management \
                                               /srv/marinnex/Toolkits_Management
+
+bash /srv/marinnex/Marinnex/deploy/setup-server.sh
+# log out and back in, so the docker group applies
 
 /srv/marinnex/Marinnex/deploy/scripts/deploy.sh
 ```

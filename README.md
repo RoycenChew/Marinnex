@@ -15,17 +15,36 @@ calls — classify, then extract — and everything after them is ordinary code.
 > Internal codename **FDIP**. The public name is Marinnex Lab; "FDIP" appears in
 > code, routes, configuration and documents, and this README uses both.
 
-**Status: built and tested, not deployed.** No real customer has used it, and
-nothing has been deployed to any server. The AWS instructions here are written
-from the configuration in `deploy/` and were verified by building and running
-the stack locally under Docker Desktop — not by running it on EC2.
-[`docs/PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md) §42 lists what
-is still open; §27 lists what has and has not been measured.
+## The portal
 
-**Licence: proprietary, all rights reserved.** This repository is public so the
-work can be read and assessed. That is not a grant of rights to run it for
-yourself or for anyone else — read [Licence](#licence) before deploying
-anything.
+**<https://marinnex.duckdns.org/>**
+
+A live deployment of this repository, running the stack in
+[`deploy/`](#production-deployment) behind Caddy with HTTPS.
+
+**Registration is closed — it is invite only.** There is no sign-up link,
+`/v1/auth/register` answers `403`, and accounts are created by an operator. Ask
+for one. When you get it you will be given a temporary password once, in person
+or over a channel you already trust; change it on your account page. There is no
+password-reset email anywhere in this product, so put it in a password manager
+the moment you receive it.
+
+The portal is **not updated automatically from `main`.** It is redeployed by an
+operator running [`deploy/scripts/deploy.sh`](#every-release-after-that), so
+anything described in this README may not be on it yet. Check
+<https://marinnex.duckdns.org/v1/health> for the `pipeline_version` it is
+actually running.
+
+**Status: deployed, but no real customer has used it yet.** The release blockers
+are real and listed under [Security](#security) — no malware scanning, no
+retention policy, no PDPA review of cross-border transfer to the AI provider, no
+privacy notice. Do not put a document through it that you would mind a third
+party processing. [`docs/PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md)
+§42 has the full list; §27 lists what has and has not been measured.
+
+**Licence: proprietary, all rights reserved.** Read [Licence](#licence) before
+running this anywhere. Access to the repository is not a grant of rights to
+operate the software.
 
 ---
 
@@ -709,16 +728,22 @@ repository, and the repository's folder name is passed in as `APP_DIR`:
 ### First time
 
 ```bash
-# on the server, as a user with sudo
-curl -fsSL https://raw.githubusercontent.com/RoycenChew/Marinnex/main/deploy/setup-server.sh -o setup-server.sh
-bash setup-server.sh
-# log out and back in, so the docker group applies
+# on the server, as a user with sudo.
+# This repository is private, so clone it first — a plain curl of a raw file
+# would get a 404, not a script. The toolkit is public.
+sudo mkdir -p /srv/marinnex && sudo chown "$USER" /srv/marinnex
+git clone https://github.com/RoycenChew/Marinnex             /srv/marinnex/Marinnex
+git clone https://github.com/RoycenChew/Toolkits_Management  /srv/marinnex/Toolkits_Management
 
-git clone https://github.com/RoycenChew/Marinnex              /srv/marinnex/Marinnex
-git clone https://github.com/RoycenChew/Toolkits_Management    /srv/marinnex/Toolkits_Management
+bash /srv/marinnex/Marinnex/deploy/setup-server.sh
+# log out and back in, so the docker group applies
 
 /srv/marinnex/Marinnex/deploy/scripts/deploy.sh
 ```
+
+Cloning a private repository on a server needs credentials of its own: a deploy
+key, or a fine-grained personal access token. `deploy.sh` runs `git pull` on
+every release, so whatever you use has to keep working unattended.
 
 `setup-server.sh` creates the swap file, installs Docker and the AWS CLI, turns
 on unattended security upgrades, creates `/srv/marinnex/data` owned by uid 10001
@@ -963,8 +988,10 @@ include a working exploit or any real document.
 
 ## Limitations
 
-- **Not deployed, and no real customers.** Everything measured so far was
-  measured on benchmark corpora and synthetic Malaysian invoices.
+- **Deployed, but no real customers.** Everything measured so far was measured
+  on benchmark corpora and synthetic Malaysian invoices, not on real invoices
+  from real suppliers. The portal exists; the release blockers under
+  [Security](#security) do not stop existing because it does.
 - **Scanned documents are always reviewed by a person.**
   `FDIP_SCAN_AUTO_ACCEPT` defaults to `false`, so a document whose evidence came
   from OCR never reaches `completed` automatically: it gets `needs_review` with
@@ -1038,10 +1065,11 @@ If you have been given access to work on it:
 **Proprietary. Copyright © 2026 Royce Chew. All rights reserved.** See
 [`LICENSE`](LICENSE).
 
-This repository is public so the work can be read, reviewed and assessed. Being
-readable is not a grant of rights. You may read the source, clone it to evaluate
-it, and run it locally for that evaluation. Operating it for yourself or for
-anyone else, hosting it, or deriving a work from it requires written permission.
+If you can read this, you were given access deliberately — so the work can be
+read, reviewed and assessed. Access is not a grant of rights. You may read the
+source, clone it to evaluate it, and run it locally for that evaluation.
+Operating it for yourself or for anyone else, hosting it, redistributing it or
+deriving a work from it requires written permission.
 
 The installation and deployment instructions above are documentation, not a
 licence: they are here so a reader can verify the system does what it claims,
