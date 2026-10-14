@@ -2,46 +2,8 @@
 
 [![Portal](https://img.shields.io/badge/portal-marinnex.duckdns.org-08627a?style=flat-square&logo=caddy&logoColor=white)](https://marinnex.duckdns.org/)
 ![Access](https://img.shields.io/badge/access-invite%20only-08627a?style=flat-square)
-[![Licence](https://img.shields.io/badge/licence-proprietary-6b7280?style=flat-square)](LICENSE)
 ![Tests](https://img.shields.io/badge/tests-156%20passing-16a34a?style=flat-square)
-![API](https://img.shields.io/badge/API-33%20routes%20under%20%2Fv1-0ea5e9?style=flat-square&logo=openapiinitiative&logoColor=white)
-
-**Backend**
-![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?style=flat-square&logo=fastapi&logoColor=white)
-![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0%20Core-D71F00?style=flat-square&logo=sqlalchemy&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-WAL-003B57?style=flat-square&logo=sqlite&logoColor=white)
-![Alembic](https://img.shields.io/badge/Alembic-migrations-6BA81E?style=flat-square)
-
-**Frontend**
-![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![TanStack Query](https://img.shields.io/badge/TanStack%20Query-5-FF4154?style=flat-square&logo=reactquery&logoColor=white)
-![Node](https://img.shields.io/badge/Node-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)
-
-**AI and document parsing**
-![DeepSeek](https://img.shields.io/badge/DeepSeek-deepseek--flash-4D6BFE?style=flat-square)
-![Tesseract](https://img.shields.io/badge/Tesseract-OCR%20300%20DPI-5C3EE8?style=flat-square)
-![pdfplumber](https://img.shields.io/badge/pdfplumber-text%20layer-FF6F00?style=flat-square)
-![Grounded](https://img.shields.io/badge/evidence-word--level%20grounding-16a34a?style=flat-square)
-![Confidence](https://img.shields.io/badge/confidence%20scores-none%20by%20design-6b7280?style=flat-square)
-
-**Deployment**
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Caddy](https://img.shields.io/badge/Caddy-2%20%2B%20HTTPS-1F88C0?style=flat-square&logo=caddy&logoColor=white)
-![Litestream](https://img.shields.io/badge/Litestream-S3%20replication-5B21B6?style=flat-square)
-![AWS](https://img.shields.io/badge/AWS-ap--southeast--5-232F3E?style=flat-square)
-
-**Built for**
-![Malaysia](https://img.shields.io/badge/market-Malaysia-08627a?style=flat-square)
-![Currency](https://img.shields.io/badge/currency-MYR-08627a?style=flat-square)
-![Tax](https://img.shields.io/badge/tax-SST-08627a?style=flat-square)
-![Languages](https://img.shields.io/badge/labels-English%20%2B%20Malay-08627a?style=flat-square)
-![Dates](https://img.shields.io/badge/dates-day%20first-08627a?style=flat-square)
-![Documents](https://img.shields.io/badge/documents-invoices%20%2B%20credit%20notes-08627a?style=flat-square)
-![Input](https://img.shields.io/badge/input-digital%20PDF%20%2B%20scans-08627a?style=flat-square)
+[![Licence](https://img.shields.io/badge/licence-proprietary-6b7280?style=flat-square)](LICENSE)
 
 Reads Malaysian supplier invoices and hands back structured data, showing where
 every value came from.
@@ -120,6 +82,14 @@ operate the software.
 
 ## What it does
 
+![Malaysia](https://img.shields.io/badge/market-Malaysia-08627a?style=flat-square)
+![Currency](https://img.shields.io/badge/currency-MYR-08627a?style=flat-square)
+![Tax](https://img.shields.io/badge/tax-SST-08627a?style=flat-square)
+![Languages](https://img.shields.io/badge/labels-English%20%2B%20Malay-08627a?style=flat-square)
+![Dates](https://img.shields.io/badge/dates-day%20first-08627a?style=flat-square)
+![Documents](https://img.shields.io/badge/documents-invoices%20%2B%20credit%20notes-08627a?style=flat-square)
+![Input](https://img.shields.io/badge/input-digital%20PDF%20%2B%20scans-08627a?style=flat-square)
+
 | | |
 |---|---|
 | **Evidence for every value** | Each extracted field carries the page, the bounding box and the words it was read from — including each cell of each line item. |
@@ -173,6 +143,14 @@ on document — because a number nobody has calibrated is a number someone would
 trust.
 
 ## Stack
+
+| | |
+|---|---|
+| **Backend** | ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?style=flat-square&logo=fastapi&logoColor=white) ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0%20Core-D71F00?style=flat-square&logo=sqlalchemy&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-WAL-003B57?style=flat-square&logo=sqlite&logoColor=white) ![Alembic](https://img.shields.io/badge/Alembic-migrations-6BA81E?style=flat-square) |
+| **Frontend** | ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite&logoColor=white) ![Tailwind](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white) ![TanStack Query](https://img.shields.io/badge/TanStack%20Query-5-FF4154?style=flat-square&logo=reactquery&logoColor=white) ![Node](https://img.shields.io/badge/Node-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white) |
+| **AI and parsing** | ![DeepSeek](https://img.shields.io/badge/DeepSeek-deepseek--flash-4D6BFE?style=flat-square) ![Tesseract](https://img.shields.io/badge/Tesseract-OCR%20300%20DPI-5C3EE8?style=flat-square) ![pdfplumber](https://img.shields.io/badge/pdfplumber-text%20layer-FF6F00?style=flat-square) ![Evidence](https://img.shields.io/badge/evidence-word--level%20grounding-16a34a?style=flat-square) ![Confidence](https://img.shields.io/badge/confidence%20scores-none%20by%20design-6b7280?style=flat-square) |
+| **Deployment** | ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white) ![Caddy](https://img.shields.io/badge/Caddy-2%20%2B%20HTTPS-1F88C0?style=flat-square&logo=caddy&logoColor=white) ![Litestream](https://img.shields.io/badge/Litestream-S3%20replication-5B21B6?style=flat-square) ![AWS](https://img.shields.io/badge/AWS-ap--southeast--5-232F3E?style=flat-square) |
+| **API** | ![API](https://img.shields.io/badge/API-33%20routes%20under%20%2Fv1-0ea5e9?style=flat-square&logo=openapiinitiative&logoColor=white) ![Errors](https://img.shields.io/badge/errors-RFC%209457-0ea5e9?style=flat-square) |
 
 | Layer | What |
 |---|---|
