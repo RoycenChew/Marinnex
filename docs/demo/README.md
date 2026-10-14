@@ -17,11 +17,11 @@ is displayed once, at creation, and never stored.
 
 | File | What it shows |
 |---|---|
-| `01-landing.png` · `-dark` · `-mobile` | The public home page: what the product does, how it works, and what comes back |
-| `02-guide.png` · `-dark` | The guide |
-| `03-trust.png` · `-dark` | Where documents go, stated plainly — including that AI processing happens at DeepSeek, in China |
-| `04-sign-in.png` · `-dark` | Sign in |
-| `05-invite-only.png` · `-dark` | Sign-up, closed. Registration is invite only in production, so the page says so rather than leaving someone to guess |
+| `01-landing.png` · `-mobile` | The public home page: what the product does, how it works, and what comes back |
+| `02-guide.png` | The guide |
+| `03-trust.png` | Where documents go, stated plainly — including that AI processing happens at DeepSeek, in China |
+| `04-sign-in.png` | Sign in |
+| `05-invite-only.png` | Sign-up, closed. Registration is invite only in production, so the page says so rather than leaving someone to guess |
 | `06-documents.png` | What a new account sees on first sign-in, on the live portal |
 
 ## The product, in mock mode
@@ -29,7 +29,7 @@ is displayed once, at creation, and never stored.
 | File | What it shows |
 |---|---|
 | `20-documents.png` | The document list |
-| `21-review-evidence.png` · `-dark` | **The one to look at.** The review screen: the page on the left with the words each value was read from boxed on it, and on the right every field with how it was verified — `Found on page`, `Calculated`, or `Not on document` for a field with nothing printed. The banner reports the one line-item amount that could not be located, which is why the document is held for a person instead of being passed on |
+| `21-review-evidence.png` | **The one to look at.** The review screen: the page on the left with the words each value was read from boxed on it, and on the right every field with how it was verified — `Found on page`, `Calculated`, or `Not on document` for a field with nothing printed. The banner reports the one line-item amount that could not be located, which is why the document is held for a person instead of being passed on |
 | `22-schemas.png` | Schemas and their immutable versions |
 | `23-api-keys.png` | Keys, and the generated call for your own code |
 | `24-usage.png` | Pages and AI cost |

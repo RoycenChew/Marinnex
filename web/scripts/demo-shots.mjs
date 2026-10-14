@@ -14,7 +14,7 @@
  * was meant to show, is worse than a missing file.
  */
 import { chromium } from 'playwright'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 const BASE = process.env.BASE ?? 'https://marinnex.duckdns.org'
@@ -22,7 +22,7 @@ const OUT = new URL('../../docs/demo/', import.meta.url)
 const EMAIL = process.env.PORTAL_EMAIL
 const PASSWORD = process.env.PORTAL_PASSWORD
 
-/** [file, path, {full, scheme, width}] */
+/** [file, path] */
 const PUBLIC_PAGES = [
   ['01-landing', '/'],
   ['02-guide', '/guide'],
@@ -152,10 +152,6 @@ if (SET === 'product') {
   await capture(context, PRODUCT_PAGES)
   await reviewScreen(context, '')
   await context.close()
-  const ctxDark = await browser.newContext({ viewport: DESKTOP, colorScheme: 'dark' })
-  await signIn(ctxDark, 'dev@fdip.local', 'devpass')
-  await reviewScreen(ctxDark, '-dark')
-  await ctxDark.close()
   await browser.close()
   const out = [`base: ${BASE}`, `written: ${written.length}`, ...written.map((f) => `  ${f}`),
     ...(skipped.length ? ['skipped:', ...skipped.map((s) => `  ${s}`)] : [])].join('\n')
@@ -163,10 +159,13 @@ if (SET === 'product') {
   process.exit(skipped.length ? 1 : 0)
 }
 
-// --- public pages, light and dark ------------------------------------------
-for (const scheme of ['light', 'dark']) {
-  const context = await browser.newContext({ viewport: DESKTOP, colorScheme: scheme })
-  await capture(context, PUBLIC_PAGES, { suffix: scheme === 'dark' ? '-dark' : '' })
+// --- public pages -----------------------------------------------------------
+// Light only. The app has a dark theme and it works, but a demo folder with
+// each screen twice makes the reader choose between two of the same thing
+// instead of looking at the product.
+{
+  const context = await browser.newContext({ viewport: DESKTOP, colorScheme: 'light' })
+  await capture(context, PUBLIC_PAGES)
   await context.close()
 }
 
@@ -212,4 +211,3 @@ const report = [
   ...(skipped.length ? ['skipped:', ...skipped.map((s) => `  ${s}`)] : []),
 ].join('\n')
 console.log(report)
-await writeFile(new URL('.shots.log', OUT), report + '\n', 'utf8')
