@@ -9,7 +9,7 @@ nothing. Switching to live is the last section, and it is one variable.
 ## 1. Virtual environment
 
 ```powershell
-cd "C:\Users\Chew MIng Yau\OneDrive\Desktop\Intelligent Document Processing\fdip"
+cd <the folder you cloned this repository into>
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -26,7 +26,17 @@ without reinstalling.
 ```powershell
 pip install -e ..\Toolkits_Management
 pip install -e ".[dev]"
+pip install "pdfplumber>=0.11" "pillow>=10.0"
 ```
+
+The third line is not optional. The toolkit's base install is standard-library
+only by design, and `pdfplumber` lives in an extra that also drags in docling —
+hundreds of megabytes this project never uses — so it has to be installed by
+name. **Without it the API starts, uploads are accepted, and every document
+fails at the parse stage** with a generic `internal` error code, which tells you
+nothing about the cause. `deploy/Dockerfile.app`
+installs both by name for the same reason, and CI installs `pdfplumber` as its
+own step.
 
 Scanned documents also need the Tesseract binary on `PATH`. Check with
 `tesseract --version`. Without it, image files and scanned PDFs fail with a clear
@@ -48,9 +58,15 @@ FDIP_SESSION_SECRET=<32+ random characters>
 FDIP_DEV_SEED=1
 ```
 
-`.env` is git-ignored. In mock mode a missing secret is generated at startup; in
-live mode the server refuses to start without one, because a generated pepper
-would invalidate every API key already issued.
+`.env` is git-ignored. **`FDIP_KEY_PEPPER` is required in every mode** — at
+least 16 characters — and the server refuses to start without it. It used to be
+generated outside live mode as a convenience, and the convenience was that a
+local server started happily with a brand-new pepper and left every key already
+in the database failing to authenticate, with nothing in the logs to say why.
+
+`FDIP_SESSION_SECRET` is generated when absent in mock and recorded mode, and is
+required in live mode and in production; a generated one logs everyone out on
+restart, which is recoverable.
 
 To generate them:
 
@@ -132,12 +148,17 @@ only origin in `FDIP_CORS_ORIGINS`. Add others as a comma-separated list. CORS
 runs with credentials allowed, because the session is a cookie — so a wildcard
 origin will not work, and the list is not optional.
 
-The UI agent needs four things from this folder:
+A plain `npm run dev` does **not** reach this backend. `web/.env.development` is
+committed and sets `VITE_USE_MOCKS=true`, so the UI serves itself from MSW
+fixtures and talks to nothing. To use the real API, set
+`$env:VITE_USE_MOCKS = "false"` before `npm run dev`.
+
+The UI agent needs four things:
 
 | File | What it is |
 | --- | --- |
 | `openapi.json` | the machine-readable contract; a test fails if it is stale |
-| `API_CONTRACT_FOR_UI.md` | the same thing for humans, with real captured examples |
+| `docs/API_CONTRACT_FOR_UI.md` | the same thing for humans, with real captured examples |
 | `samples\` | five documents to test against, plus `examples.json` |
 | this file | how to get the backend up |
 
@@ -156,9 +177,12 @@ a test checks it stays usable as a mock source.
 
 ```powershell
 python -m pytest -q
-python -m ruff check fdip migrations
-python -m mypy fdip
+python -m ruff check fdip tests
+python -m mypy fdip --exclude 'tests'
 ```
+
+These are exactly what CI runs, plus `npm run build` in `web\`. Run all four
+before a commit.
 
 The suite never contacts a provider. It runs in mock mode with a temporary data
 directory per test, and parsing runs in process (`FDIP_SANDBOX=0`) because
@@ -234,6 +258,8 @@ docker compose up --build
 
 | Symptom | Cause |
 | --- | --- |
+| Every document fails at the parse stage | `pdfplumber` is not installed — see section 2 |
+| The UI shows data with no backend running | `VITE_USE_MOCKS` is `true`, the development default |
 | Every scan comes back `needs_review` | expected: `FDIP_SCAN_AUTO_ACCEPT` is false by default (see below) |
 | Uploads stay `processing` | the worker is not running |
 | `database is locked` | two writers; SQLite allows one. Check for a second worker |
@@ -241,7 +267,9 @@ docker compose up --build
 | `401` on every UI call | the browser is not sending the cookie; set `credentials: "include"` |
 | CORS error in the browser | the origin is not in `FDIP_CORS_ORIGINS` |
 | `openapi.json is stale` in tests | run `fdip openapi --out openapi.json` |
-| Live mode refuses to start | `FDIP_KEY_PEPPER`, `FDIP_SESSION_SECRET` or `DEEPSEEK_API_KEY` is missing |
+| The server refuses to start, in any mode | `FDIP_KEY_PEPPER` is missing or under 16 characters |
+| Live mode refuses to start | `FDIP_SESSION_SECRET` or `DEEPSEEK_API_KEY` is missing |
+| `FDIP_ENV=production` refuses to start | it also needs `FDIP_AI_MONTHLY_CEILING_USD`, and forbids `FDIP_PROVIDER_MODE=mock` |
 
 Logs are structured JSON with ids and codes only. They deliberately contain no
 document text, no extracted values and no prompts — and SQLAlchemy's statement

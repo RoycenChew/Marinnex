@@ -10,8 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY Toolkits_Management /app/Toolkits_Management
 COPY fdip /app/fdip
+# pdfplumber and pillow by name rather than through the toolkit's `docs` and
+# `ocr` extras: `docs` also drags in docling, hundreds of megabytes this image
+# never uses. Without pdfplumber the API starts, accepts uploads, and fails
+# every document at the parse stage with "a parser is not installed" — the
+# toolkit's base install is standard-library only by design.
+# deploy/Dockerfile.app carries the same two lines for the same reason.
 RUN pip install --no-cache-dir -e /app/Toolkits_Management \
-    && pip install --no-cache-dir -e /app/fdip
+    && pip install --no-cache-dir -e /app/fdip \
+    && pip install --no-cache-dir "pdfplumber>=0.11" "pillow>=10.0"
 
 WORKDIR /app/fdip
 ENV FDIP_DATA_DIR=/data \
