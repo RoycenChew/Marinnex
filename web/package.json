@@ -12,7 +12,8 @@
     "check:a11y": "node scripts/a11y.mjs",
     "check:contrast": "node scripts/contrast.mjs",
     "check:widths": "node scripts/widths.mjs",
-    "check:keyboard": "node scripts/keyboard.mjs"
+    "check:keyboard": "node scripts/keyboard.mjs",
+    "shots": "node scripts/demo-shots.mjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.24",
